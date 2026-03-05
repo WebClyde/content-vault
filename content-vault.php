@@ -21,6 +21,9 @@ if (!defined('WEBCLYDE_CONTENT_VAULT_VERSION')) {
 if (!defined('WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR')) {
     define('WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 }
+if (!defined('WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE')) {
+    define('WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE', __FILE__);
+}
 if (!defined('WEBCLYDE_CONTENT_VAULT_PLUGIN_URL')) {
     define('WEBCLYDE_CONTENT_VAULT_PLUGIN_URL', plugin_dir_url(__FILE__));
 }

@@ -26,8 +26,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
         }
 
         private function init_hooks() {
-            register_activation_hook( __FILE__, array( $this, 'activate' ) );
-            register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
+            register_activation_hook( WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE, array( $this, 'activate' ) );
+            register_deactivation_hook( WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE, array( $this, 'deactivate' ) );
 
             add_action( 'plugins_loaded', array( $this, 'init_plugin' ) );
             add_action( 'admin_init', array( $this, 'check_action_scheduler' ) );

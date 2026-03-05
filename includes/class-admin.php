@@ -35,82 +35,82 @@ class WebClyde_Content_Vault_Admin {
     
     public function add_menu_pages() {
         add_menu_page(
-            __('WebClyde Content Vault', 'webclyde-content-vault'),
-            __('WebClyde Content Vault', 'webclyde-content-vault'),
+            __('Content Vault', 'webclyde-content-vault'),
+            __('Content Vault', 'webclyde-content-vault'),
             'manage_options',
-            'webclyde-content-vault',
+            'content-vault',
             array($this, 'render_dashboard_page'),
             'dashicons-backup',
             80
         );
         
         add_submenu_page(
-            'webclyde-content-vault',
+            'content-vault',
             __('Dashboard', 'webclyde-content-vault'),
             __('Dashboard', 'webclyde-content-vault'),
             'manage_options',
-            'webclyde-content-vault',
+            'content-vault',
             array($this, 'render_dashboard_page')
         );
         
         add_submenu_page(
-            'webclyde-content-vault',
+            'content-vault',
             __('Settings', 'webclyde-content-vault'),
             __('Settings', 'webclyde-content-vault'),
             'manage_options',
-            'webclyde-content-vault-settings',
+            'content-vault-settings',
             array($this, 'render_settings_page')
         );
         
         add_submenu_page(
-            'webclyde-content-vault',
+            'content-vault',
             __('All Logs', 'webclyde-content-vault'),
             __('All Logs', 'webclyde-content-vault'),
             'manage_options',
-            'webclyde-content-vault-logs',
+            'content-vault-logs',
             array($this, 'render_logs_page')
         );
         
         add_submenu_page(
-            'webclyde-content-vault',
+            'content-vault',
             __('Post Logs', 'webclyde-content-vault'),
             __('Post Logs', 'webclyde-content-vault'),
             'manage_options',
-            'webclyde-content-vault-posts',
+            'content-vault-posts',
             array($this, 'render_post_logs_page')
         );
         
         add_submenu_page(
-            'webclyde-content-vault',
+            'content-vault',
             __('Page Logs', 'webclyde-content-vault'),
             __('Page Logs', 'webclyde-content-vault'),
             'manage_options',
-            'webclyde-content-vault-pages',
+            'content-vault-pages',
             array($this, 'render_page_logs_page')
         );
     }
     
     public function enqueue_assets($hook) {
-        if (strpos($hook, 'webclyde-content-vault') === false) {
+        if (strpos($hook, 'content-vault') === false) {
             return;
         }
         
         wp_enqueue_style(
-            'webclyde-content-vault-admin',
+            'content-vault-admin',
             WEBCLYDE_CONTENT_VAULT_PLUGIN_URL . 'admin-style.css',
             array(),
             WEBCLYDE_CONTENT_VAULT_VERSION
         );
         
         wp_enqueue_script(
-            'webclyde-content-vault-admin',
+            'content-vault-admin',
             WEBCLYDE_CONTENT_VAULT_PLUGIN_URL . 'admin-script.js',
             array('jquery'),
             WEBCLYDE_CONTENT_VAULT_VERSION,
             true
         );
         
-        wp_localize_script('webclyde-content-vault-admin', 'webclydeContentVault', array(
+        wp_localize_script('content-vault-admin', 'webclydeContentVault', array(
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('webclyde_content_vault_nonce'),
             'strings' => array(
@@ -129,7 +129,9 @@ class WebClyde_Content_Vault_Admin {
     private function inline_styles() {
         $css = "
         .webclyde-wrap {
-            max-width: 1400px;
+            width: 100%;
+            padding-right: 20px;
+            box-sizing: border-box;
         }
         .webclyde-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -142,6 +144,7 @@ class WebClyde_Content_Vault_Admin {
             margin: 0 0 10px;
             font-size: 28px;
             font-weight: 600;
+            color: #fff;
         }
         .webclyde-header p {
             margin: 0;
@@ -484,7 +487,7 @@ class WebClyde_Content_Vault_Admin {
             color: #667eea;
         }
         ";
-        wp_add_inline_style('webclyde-content-vault-admin', $css);
+        wp_add_inline_style('content-vault-admin', $css);
     }
     
     private function inline_scripts() {
@@ -649,7 +652,7 @@ class WebClyde_Content_Vault_Admin {
             }
         });
         ";
-        wp_add_inline_script('webclyde-content-vault-admin', $js);
+        wp_add_inline_script('content-vault-admin', $js);
     }
     
     public function render_dashboard_page() {
@@ -657,7 +660,7 @@ class WebClyde_Content_Vault_Admin {
         ?>
         <div class="wrap webclyde-wrap">
             <div class="webclyde-header">
-                <h1><?php esc_html_e('WebClyde Content Vault', 'webclyde-content-vault'); ?></h1>
+                <h1><?php esc_html_e('Content Vault', 'webclyde-content-vault'); ?></h1>
                 <p><?php esc_html_e('Archive your WordPress content to the Content Vault automatically', 'webclyde-content-vault'); ?></p>
             </div>
             
@@ -720,28 +723,28 @@ class WebClyde_Content_Vault_Admin {
                 </div>
                 
                 <div class="webclyde-quick-links">
-                    <a href="<?php echo admin_url('admin.php?page=webclyde-content-vault-settings'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo admin_url('admin.php?page=content-vault-settings'); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-admin-generic"></span>
                         <div>
                             <strong><?php esc_html_e('Settings', 'webclyde-content-vault'); ?></strong>
                             <div class="webclyde-time"><?php esc_html_e('Configure API keys and options', 'webclyde-content-vault'); ?></div>
                         </div>
                     </a>
-                    <a href="<?php echo admin_url('admin.php?page=webclyde-content-vault-logs'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo admin_url('admin.php?page=content-vault-logs'); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-list-view"></span>
                         <div>
                             <strong><?php esc_html_e('All Logs', 'webclyde-content-vault'); ?></strong>
                             <div class="webclyde-time"><?php esc_html_e('View all archive logs', 'webclyde-content-vault'); ?></div>
                         </div>
                     </a>
-                    <a href="<?php echo admin_url('admin.php?page=webclyde-content-vault-posts'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo admin_url('admin.php?page=content-vault-posts'); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-admin-post"></span>
                         <div>
                             <strong><?php esc_html_e('Post Logs', 'webclyde-content-vault'); ?></strong>
                             <div class="webclyde-time"><?php esc_html_e('View post archive logs', 'webclyde-content-vault'); ?></div>
                         </div>
                     </a>
-                    <a href="<?php echo admin_url('admin.php?page=webclyde-content-vault-pages'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo admin_url('admin.php?page=content-vault-pages'); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-admin-page"></span>
                         <div>
                             <strong><?php esc_html_e('Page Logs', 'webclyde-content-vault'); ?></strong>
