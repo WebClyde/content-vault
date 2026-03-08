@@ -859,6 +859,20 @@ class WebClyde_Content_Vault_Admin {
                     </p>
                 </div>
                 
+                <div class="webclyde-box">
+                    <h2><?php esc_html_e('404 Error Handling', 'webclyde-content-vault'); ?></h2>
+                    
+                    <div class="webclyde-form-row">
+                        <label for="broken_link_action"><?php esc_html_e('Broken Link Action', 'webclyde-content-vault'); ?></label>
+                        <select id="broken_link_action" name="broken_link_action" style="max-width: 400px; padding: 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                            <option value="none" <?php selected($this->settings->get('broken_link_action', 'none'), 'none'); ?>><?php esc_html_e('Do Nothing (Default)', 'webclyde-content-vault'); ?></option>
+                            <option value="direct" <?php selected($this->settings->get('broken_link_action', 'none'), 'direct'); ?>><?php esc_html_e('Direct redirect to Wayback Machine', 'webclyde-content-vault'); ?></option>
+                            <option value="404_page" <?php selected($this->settings->get('broken_link_action', 'none'), '404_page'); ?>><?php esc_html_e('Show 404 page with Archive Link banner', 'webclyde-content-vault'); ?></option>
+                        </select>
+                        <p class="description"><?php esc_html_e('If a user hits a 404 page, check the internet archive for a snapshot.', 'webclyde-content-vault'); ?></p>
+                    </div>
+                </div>
+                
                 <button type="submit" class="webclyde-btn webclyde-btn-primary">
                     <span class="dashicons dashicons-saved"></span>
                     <?php esc_html_e('Save Settings', 'webclyde-content-vault'); ?>

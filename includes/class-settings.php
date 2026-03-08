@@ -16,6 +16,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Settings' ) ) {
             'check_interval',
             'max_attempts',
             'check_link_health',
+            'broken_link_action',
         );
 
         public function __construct() {
@@ -61,6 +62,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Settings' ) ) {
                     return max( 1, min( 60, (int) $value ) );
                 case 'max_attempts':
                     return max( 1, min( 50, (int) $value ) );
+                case 'broken_link_action':
+                    return in_array( $value, array('none', 'direct', '404_page'), true ) ? $value : 'none';
                 default:
                     return sanitize_text_field( $value );
             }

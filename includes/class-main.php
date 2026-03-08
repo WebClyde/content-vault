@@ -13,6 +13,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
         public $api;
         public $scheduler;
         public $admin;
+        public $handler_404;
 
         public static function get_instance() {
             if ( null === self::$instance ) {
@@ -88,6 +89,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 'check_interval'   => 2,
                 'max_attempts'     => 15,
                 'check_link_health'=> 1,
+                'broken_link_action'=> 'none',
             );
 
             foreach ( $defaults as $key => $value ) {
@@ -154,6 +156,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             $this->api       = new WebClyde_Content_Vault_API( $this->settings );
             $this->scheduler = new WebClyde_Content_Vault_Scheduler( $this->api, $this->logger, $this->settings );
             $this->admin     = new WebClyde_Content_Vault_Admin( $this->settings, $this->logger, $this->api, $this->scheduler );
+            $this->handler_404 = new WebClyde_Content_Vault_404_Handler( $this->settings, $this->api );
 
             if ( $this->settings->get( 'enable_posts' ) ) {
                 add_action( 'publish_post', array( $this, 'handle_publish' ), 10, 2 );

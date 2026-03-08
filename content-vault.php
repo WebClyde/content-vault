@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: WebClyde Content Vault
+ * Plugin Name: Content Vault
  * Plugin URI: https://webclyde.com
  * Description: Automatically archive posts and pages to the Content Vault using S3 API with async status checking.
  * Version: 2.0.0
@@ -38,6 +38,7 @@ require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-logger.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-api.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-scheduler.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-admin.php';
+require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-404-handler.php';
 
 // bootstrap
 function webclyde_content_vault_init() {

@@ -170,5 +170,24 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
                 'code'    => $code,
             );
         }
+
+        public function get_archive_url( $url ) {
+            $availability_url = 'https://archive.org/wayback/available?url=' . urlencode( $url );
+            $response = wp_remote_get( $availability_url, array(
+                'timeout' => 10,
+            ) );
+
+            if ( is_wp_error( $response ) ) {
+                return false;
+            }
+
+            $body = json_decode( wp_remote_retrieve_body( $response ), true );
+            
+            if ( isset( $body['archived_snapshots']['closest']['available'] ) && $body['archived_snapshots']['closest']['available'] ) {
+                return $body['archived_snapshots']['closest']['url'];
+            }
+
+            return false;
+        }
     }
 }
