@@ -3,7 +3,7 @@
  * Plugin Name: Content Vault
  * Plugin URI: https://webclyde.com
  * Description: Automatically archive posts and pages to the Content Vault using S3 API with async status checking.
- * Version: 2.0.0
+ * Version: 1.0.1
  * Author: WebClyde
  * Author URI: https://webclyde.com
  * License: GPL v2 or later
