@@ -5,7 +5,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
+
     final class WebClyde_Content_Vault {
+
         private static $instance = null;
 
         public $settings;
@@ -16,9 +18,11 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
         public $handler_404;
 
         public static function get_instance() {
+
             if ( null === self::$instance ) {
                 self::$instance = new self();
             }
+
             return self::$instance;
         }
 
@@ -27,28 +31,42 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
         }
 
         private function init_hooks() {
-            register_activation_hook( WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE, array( $this, 'activate' ) );
-            register_deactivation_hook( WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE, array( $this, 'deactivate' ) );
 
-            add_action( 'plugins_loaded', array( $this, 'init_plugin' ) );
+            register_activation_hook(
+                WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE,
+                array( $this, 'activate' )
+            );
+
+            register_deactivation_hook(
+                WEBCLYDE_CONTENT_VAULT_PLUGIN_FILE,
+                array( $this, 'deactivate' )
+            );
+
+            add_action( 'init', array( $this, 'init_plugin' ) );
             add_action( 'admin_init', array( $this, 'check_action_scheduler' ) );
         }
 
         public function activate() {
+
             $this->create_database_table();
             $this->set_default_options();
+
             flush_rewrite_rules();
         }
 
         public function deactivate() {
+
             wp_clear_scheduled_hook( 'webclyde_content_vault_check_status' );
+
             if ( function_exists( 'as_unschedule_all_actions' ) ) {
                 as_unschedule_all_actions( 'webclyde_content_vault_check_pending' );
             }
         }
 
         private function create_database_table() {
+
             global $wpdb;
+
             $table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
             $charset_collate = $wpdb->get_charset_collate();
 
@@ -74,38 +92,51 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 KEY post_type (post_type)
             ) $charset_collate;";
 
-            require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
             dbDelta( $sql );
 
-            update_option( 'webclyde_content_vault_db_version', WEBCLYDE_CONTENT_VAULT_VERSION );
+            update_option(
+                'webclyde_content_vault_db_version',
+                WEBCLYDE_CONTENT_VAULT_VERSION
+            );
         }
 
         private function set_default_options() {
+
             $defaults = array(
-                'access_key'       => '',
-                'secret_key'       => '',
-                'enable_posts'     => 1,
-                'enable_pages'     => 1,
-                'check_interval'   => 2,
-                'max_attempts'     => 15,
-                'check_link_health'=> 1,
-                'broken_link_action'=> 'none',
+                'access_key'         => '',
+                'secret_key'         => '',
+                'enable_posts'       => 1,
+                'enable_pages'       => 1,
+                'check_interval'     => 2,
+                'max_attempts'       => 15,
+                'check_link_health'  => 1,
+                'broken_link_action' => 'none',
             );
 
             foreach ( $defaults as $key => $value ) {
-                if ( get_option( 'webclyde_content_vault_' . $key ) === false ) {
-                    update_option( 'webclyde_content_vault_' . $key, $value );
+
+                $option_name = 'webclyde_content_vault_' . $key;
+
+                if ( get_option( $option_name, null ) === null ) {
+                    update_option( $option_name, $value );
                 }
             }
         }
 
         public function check_action_scheduler() {
-            if ( ! class_exists( 'ActionScheduler' ) && ! wp_next_scheduled( 'webclyde_install_action_scheduler' ) ) {
+
+            if ( class_exists( 'ActionScheduler' ) ) {
+                return;
+            }
+
+            if ( ! wp_next_scheduled( 'webclyde_install_action_scheduler' ) ) {
                 $this->install_action_scheduler();
             }
         }
 
         private function install_action_scheduler() {
+
             if ( class_exists( 'ActionScheduler' ) ) {
                 return true;
             }
@@ -113,9 +144,11 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             if ( ! function_exists( 'plugins_api' ) ) {
                 require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
             }
-            if ( ! function_exists( 'install_plugin_install_status' ) ) {
+
+            if ( ! function_exists( 'get_plugins' ) ) {
                 require_once ABSPATH . 'wp-admin/includes/plugin.php';
             }
+
             if ( ! class_exists( 'Plugin_Upgrader' ) ) {
                 require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
             }
@@ -126,6 +159,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             $installed_plugins = get_plugins();
 
             if ( ! isset( $installed_plugins[ $plugin_file ] ) ) {
+
                 $api = plugins_api( 'plugin_information', array(
                     'slug'   => $plugin_slug,
                     'fields' => array( 'sections' => false ),
@@ -151,22 +185,39 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
         }
 
         public function init_plugin() {
+
             $this->settings  = new WebClyde_Content_Vault_Settings();
             $this->logger    = new WebClyde_Content_Vault_Logger();
             $this->api       = new WebClyde_Content_Vault_API( $this->settings );
-            $this->scheduler = new WebClyde_Content_Vault_Scheduler( $this->api, $this->logger, $this->settings );
-            $this->admin     = new WebClyde_Content_Vault_Admin( $this->settings, $this->logger, $this->api, $this->scheduler );
-            $this->handler_404 = new WebClyde_Content_Vault_404_Handler( $this->settings, $this->api );
+            $this->scheduler = new WebClyde_Content_Vault_Scheduler(
+                $this->api,
+                $this->logger,
+                $this->settings
+            );
 
-            if ( $this->settings->get( 'enable_posts' ) ) {
+            $this->admin = new WebClyde_Content_Vault_Admin(
+                $this->settings,
+                $this->logger,
+                $this->api,
+                $this->scheduler
+            );
+
+            $this->handler_404 = new WebClyde_Content_Vault_404_Handler(
+                $this->settings,
+                $this->api
+            );
+
+            if ( (int) $this->settings->get( 'enable_posts' ) === 1 ) {
                 add_action( 'publish_post', array( $this, 'handle_publish' ), 10, 2 );
             }
-            if ( $this->settings->get( 'enable_pages' ) ) {
+
+            if ( (int) $this->settings->get( 'enable_pages' ) === 1 ) {
                 add_action( 'publish_page', array( $this, 'handle_publish' ), 10, 2 );
             }
         }
 
         public function handle_publish( $post_id, $post ) {
+
             if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
                 return;
             }
@@ -176,7 +227,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             }
 
             $last_archived = get_post_meta( $post_id, '_webclyde_last_archived', true );
-            if ( $last_archived && ( time() - $last_archived ) < 300 ) {
+
+            if ( $last_archived && ( time() - (int) $last_archived ) < 300 ) {
                 return;
             }
 
@@ -185,7 +237,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
 
             $result = $this->api->submit_url( $url );
 
-            if ( $result['success'] ) {
+            if ( ! empty( $result['success'] ) ) {
+
                 $this->logger->create( array(
                     'post_id'   => $post_id,
                     'post_type' => $post_type,
@@ -195,14 +248,17 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 ) );
 
                 update_post_meta( $post_id, '_webclyde_last_archived', time() );
+
                 $this->scheduler->schedule_status_check( $result['job_id'] );
+
             } else {
+
                 $this->logger->create( array(
                     'post_id'       => $post_id,
                     'post_type'     => $post_type,
                     'url'           => $url,
                     'status'        => 'error',
-                    'error_message' => $result['error'],
+                    'error_message' => $result['error'] ?? 'Unknown error',
                 ) );
             }
         }

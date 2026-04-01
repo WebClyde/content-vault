@@ -5,7 +5,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
+
     class WebClyde_Content_Vault_Scheduler {
+
         private $api;
         private $logger;
         private $settings;
@@ -31,11 +33,16 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
         }
 
         public function add_cron_interval( $schedules ) {
-            $interval = (int) $this->settings->get( 'check_interval', 2 );
+            $interval = (int) $this->settings->get( 'check_interval', 10 );
+
+            /* translators: %d is the number of minutes between checks. */
+            $display = sprintf( __('Every %d minutes', 'content-vault'), $interval );
+
             $schedules['webclyde_two_minutes'] = array(
                 'interval' => $interval * 60,
-                'display'  => sprintf( __('Every %d minutes', 'webclyde-content-vault'), $interval ),
+                'display'  => $display,
             );
+
             return $schedules;
         }
 
@@ -44,14 +51,14 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
         }
 
         public function schedule_status_check( $job_id ) {
-            $interval = (int) $this->settings->get( 'check_interval', 2 ) * 60;
+            $interval = (int) $this->settings->get( 'check_interval', 10 ) * 60;
 
             if ( $this->has_action_scheduler() ) {
                 as_schedule_single_action(
                     time() + $interval,
                     'webclyde_content_vault_check_pending',
                     array( 'job_id' => $job_id ),
-                    'webclyde-content-vault'
+                    'content-vault'
                 );
             }
         }
@@ -62,7 +69,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     time() + 30,
                     'webclyde_content_vault_check_health',
                     array( 'log_id' => $log_id ),
-                    'webclyde-content-vault'
+                    'content-vault'
                 );
             } else {
                 $this->check_link_health( $log_id );
@@ -70,9 +77,25 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
         }
 
         public function check_pending_job( $job_id ) {
+
             $log = $this->logger->get_by_job_id( $job_id );
 
-            if ( ! $log || ! in_array( $log->status, array( 'pending', 'processing' ), true ) ) {
+            if ( ! $log ) {
+                return;
+            }
+
+            // 🔴 TERMINAL STATE GUARD (must be first)
+            if ( in_array( $log->status, array( 'success', 'error', 'completed' ), true ) ) {
+                return;
+            }
+
+            // 🔴 COOLDOWN CHECK
+            $cooldown = (int) $this->settings->get( 'check_interval', 10 ) * 60;
+
+            if (
+                ! empty( $log->last_checked ) &&
+                strtotime( $log->last_checked ) > ( time() - $cooldown )
+            ) {
                 return;
             }
 
@@ -81,8 +104,9 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             if ( $log->attempts >= $max_attempts ) {
                 $this->logger->update( $log->id, array(
                     'status'        => 'error',
-                    'error_message' => __('Max attempts reached', 'webclyde-content-vault'),
-                    'last_checked'  => current_time('mysql'),
+                    'error_message' => __( 'Max attempts reached', 'content-vault' ),
+                    'last_checked'  => current_time( 'mysql' ),
+                    'finished_at'   => current_time( 'mysql' ),
                 ) );
                 return;
             }
@@ -90,54 +114,95 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             $result = $this->api->check_status( $job_id );
 
             $update_data = array(
-                'attempts'      => $log->attempts + 1,
-                'last_checked'  => current_time('mysql'),
+                'attempts'     => $log->attempts + 1,
+                'last_checked'  => current_time( 'mysql' ),
             );
 
             if ( $result['success'] ) {
+
                 $update_data['status'] = $result['status'];
 
-                if ( $result['status'] === 'success' && ! empty( $result['snapshot_url'] ) ) {
-                    $update_data['snapshot_url'] = $result['snapshot_url'];
+                // ---------------- SUCCESS ----------------
+                if ( $result['status'] === 'success' ) {
 
-                    if ( $this->settings->get( 'check_link_health' ) ) {
-                        $this->logger->update( $log->id, $update_data );
-                        $this->schedule_health_check( $log->id );
-                        return;
+                    if ( ! empty( $result['snapshot_url'] ) ) {
+                        $update_data['snapshot_url'] = $result['snapshot_url'];
                     }
-                } elseif ( $result['status'] === 'error' ) {
-                    $update_data['error_message'] = isset( $result['message'] ) ? $result['message'] : __('Archive failed', 'webclyde-content-vault');
-                } elseif ( in_array( $result['status'], array( 'pending', 'processing' ), true ) ) {
-                    $this->schedule_status_check( $job_id );
+
+                    $update_data['finished_at'] = current_time( 'mysql' );
+                    $update_data['status']      = 'completed';
+
+                    $this->logger->update( $log->id, $update_data );
+
+                    if (
+                        $this->settings->get( 'check_link_health' ) &&
+                        ! empty( $result['snapshot_url'] )
+                    ) {
+                        $this->schedule_health_check( $log->id );
+                    }
+
+                    return;
                 }
-            } else {
-                $update_data['error_message'] = $result['error'];
-                $this->schedule_status_check( $job_id );
+
+                // ---------------- ERROR ----------------
+                if ( $result['status'] === 'error' ) {
+                    $update_data['error_message'] = isset( $result['message'] )
+                        ? $result['message']
+                        : __( 'Archive failed', 'content-vault' );
+                    $update_data['finished_at'] = current_time( 'mysql' );
+                    $update_data['status']      = 'error';   // ← keep 'error', not 'completed'
+                    $this->logger->update( $log->id, $update_data );
+                    return;
+                }
+
+                // ---------------- STILL PROCESSING ----------------
+                if ( in_array( $result['status'], array( 'pending', 'processing' ), true ) ) {
+
+                    $this->logger->update( $log->id, $update_data );
+                    $this->schedule_status_check( $job_id );
+                    return;
+                }
             }
 
+            // ---------------- API FAILURE ----------------
+            $update_data['error_message'] = $result['error'] ?? 'Unknown error';
+
             $this->logger->update( $log->id, $update_data );
+
+            $this->schedule_status_check( $job_id );
         }
 
         public function check_all_pending() {
+
             $pending = $this->logger->get_pending();
+
             foreach ( $pending as $log ) {
-                if ( ! empty( $log->job_id ) ) {
-                    $this->check_pending_job( $log->job_id );
+
+                if (
+                    empty( $log->job_id ) ||
+                    in_array( $log->status, array( 'success', 'error', 'completed' ), true )
+                ) {
+                    continue;
                 }
+
+                $this->check_pending_job( $log->job_id );
             }
         }
 
         public function check_link_health( $log_id ) {
+
             $log = $this->logger->get( $log_id );
+
             if ( ! $log || empty( $log->snapshot_url ) ) {
                 return;
             }
 
             $result = $this->api->check_link_health( $log->snapshot_url );
+
             $this->logger->update( $log->id, array(
                 'link_health'      => $result['healthy'] ? 'healthy' : 'unhealthy',
                 'link_health_code' => $result['code'],
-                'last_checked'     => current_time('mysql'),
+                'last_checked'     => current_time( 'mysql' ),
             ) );
         }
 

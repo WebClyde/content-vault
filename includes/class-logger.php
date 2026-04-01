@@ -1,191 +1,286 @@
 <?php
-
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
-
 if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
-    class WebClyde_Content_Vault_Logger {
-        private $table_name;
+	class WebClyde_Content_Vault_Logger {
 
-        public function __construct() {
-            global $wpdb;
-            $this->table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
-        }
+		private $table_name;
 
-        public function create( $data ) {
-            global $wpdb;
+		public function __construct() {
+			global $wpdb;
+			$this->table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
+		}
 
-            $defaults = array(
-                'post_id'         => 0,
-                'post_type'       => 'post',
-                'url'             => '',
-                'job_id'          => null,
-                'status'          => 'pending',
-                'snapshot_url'    => null,
-                'error_message'   => null,
-                'attempts'        => 0,
-                'link_health'     => 'unknown',
-                'link_health_code'=> null,
-                'last_checked'    => null,
-                'created_at'      => current_time('mysql'),
-                'updated_at'      => current_time('mysql'),
-            );
+		public function create( $data ) {
+			global $wpdb;
+			$defaults = array(
+				'post_id'          => 0,
+				'post_type'        => 'post',
+				'url'              => '',
+				'job_id'           => null,
+				'status'           => 'pending',
+				'snapshot_url'     => null,
+				'error_message'    => null,
+				'attempts'         => 0,
+				'link_health'      => 'unknown',
+				'link_health_code' => null,
+				'last_checked'     => null,
+				'created_at'       => current_time( 'mysql' ),
+				'updated_at'       => current_time( 'mysql' ),
+			);
+			$data   = wp_parse_args( $data, $defaults );
+			$result = $wpdb->insert( $this->table_name, $data );
+			return $result ? $wpdb->insert_id : false;
+		}
 
-            $data = wp_parse_args( $data, $defaults );
-            $result = $wpdb->insert( $this->table_name, $data );
+		public function update( $id, $data ) {
+			global $wpdb;
+			$data['updated_at'] = current_time( 'mysql' );
+			return $wpdb->update(
+				$this->table_name,
+				$data,
+				array( 'id' => $id )
+			);
+		}
 
-            return $result ? $wpdb->insert_id : false;
-        }
+		public function get( $id ) {
+			global $wpdb;
+			return $wpdb->get_row(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT * FROM {$this->table_name} WHERE id = %d",
+					$id
+				)
+			);
+		}
 
-        public function update( $id, $data ) {
-            global $wpdb;
-            $data['updated_at'] = current_time('mysql');
-            return $wpdb->update( $this->table_name, $data, array( 'id' => $id ) );
-        }
+		public function get_by_job_id( $job_id ) {
+			global $wpdb;
+			return $wpdb->get_row(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT * FROM {$this->table_name} WHERE job_id = %s",
+					$job_id
+				)
+			);
+		}
 
-        public function get( $id ) {
-            global $wpdb;
-            return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->table_name} WHERE id = %d", $id ) );
-        }
+		public function get_all( $args = array() ) {
+			global $wpdb;
 
-        public function get_by_job_id( $job_id ) {
-            global $wpdb;
-            return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->table_name} WHERE job_id = %s", $job_id ) );
-        }
+			$defaults = array(
+				'status'    => '',
+				'post_type' => '',
+				'per_page'  => 20,
+				'page'      => 1,
+				'orderby'   => 'created_at',
+				'order'     => 'DESC',
+			);
+			$args = wp_parse_args( $args, $defaults );
 
-        public function get_all( $args = array() ) {
-            global $wpdb;
+			$where  = array( '1=1' );
+			$values = array();
 
-            $defaults = array(
-                'status'   => '',
-                'post_type'=> '',
-                'per_page' => 20,
-                'page'     => 1,
-                'orderby'  => 'created_at',
-                'order'    => 'DESC',
-            );
+			if ( ! empty( $args['status'] ) ) {
+				if ( is_array( $args['status'] ) ) {
+					$placeholders = implode( ',', array_fill( 0, count( $args['status'] ), '%s' ) );
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+					$where[] = "status IN ($placeholders)";
+					$values  = array_merge( $values, $args['status'] );
+				} else {
+					$where[]  = 'status = %s';
+					$values[] = $args['status'];
+				}
+			}
 
-            $args = wp_parse_args( $args, $defaults );
+			if ( ! empty( $args['post_type'] ) ) {
+				$where[]  = 'post_type = %s';
+				$values[] = $args['post_type'];
+			}
 
-            $where = array( '1=1' );
-            $values = array();
+			$where_clause = implode( ' AND ', $where );
 
-            if ( ! empty( $args['status'] ) ) {
-                $where[] = 'status = %s';
-                $values[] = $args['status'];
-            }
+			$orderby = sanitize_sql_orderby( $args['orderby'] . ' ' . $args['order'] );
+			if ( ! $orderby ) {
+				$orderby = 'created_at DESC';
+			}
 
-            if ( ! empty( $args['post_type'] ) ) {
-                $where[] = 'post_type = %s';
-                $values[] = $args['post_type'];
-            }
+			$offset   = (int) ( ( $args['page'] - 1 ) * $args['per_page'] );
+			$per_page = (int) $args['per_page'];
 
-            $where_clause = implode( ' AND ', $where );
-            $orderby = sanitize_sql_orderby( $args['orderby'] . ' ' . $args['order'] );
-            $offset = ( $args['page'] - 1 ) * $args['per_page'];
+			// Filter out empty values to prevent UnfinishedPrepare warning when $values contains empty strings.
+			$values = array_filter( $values );
 
-            $sql = "SELECT * FROM {$this->table_name} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d";
-            $values[] = $args['per_page'];
-            $values[] = $offset;
+			$table = esc_sql( $this->table_name );
 
-            if ( ! empty( $values ) ) {
-                $sql = $wpdb->prepare( $sql, $values );
-            }
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$sql = "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d";
 
-            return $wpdb->get_results( $sql );
-        }
+			// Append integer parameters for LIMIT and OFFSET
+			$values[] = $per_page;
+			$values[] = $offset;
 
-        public function get_total( $args = array() ) {
-            global $wpdb;
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			return $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+		}
 
-            $where = array( '1=1' );
-            $values = array();
+		public function get_total( $args = array() ) {
+			global $wpdb;
 
-            if ( ! empty( $args['status'] ) ) {
-                $where[] = 'status = %s';
-                $values[] = $args['status'];
-            }
+			$where  = array( '1=1' );
+			$values = array();
 
-            if ( ! empty( $args['post_type'] ) ) {
-                $where[] = 'post_type = %s';
-                $values[] = $args['post_type'];
-            }
+			if ( ! empty( $args['status'] ) ) {
+				if ( is_array( $args['status'] ) ) {
+					$placeholders = implode( ',', array_fill( 0, count( $args['status'] ), '%s' ) );
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+					$where[] = "status IN ($placeholders)";
+					$values  = array_merge( $values, $args['status'] );
+				} else {
+					$where[]  = 'status = %s';
+					$values[] = $args['status'];
+				}
+			}
 
-            $where_clause = implode( ' AND ', $where );
-            $sql = "SELECT COUNT(*) FROM {$this->table_name} WHERE {$where_clause}";
+			if ( ! empty( $args['post_type'] ) ) {
+				$where[]  = 'post_type = %s';
+				$values[] = $args['post_type'];
+			}
 
-            if ( ! empty( $values ) ) {
-                $sql = $wpdb->prepare( $sql, $values );
-            }
+			$where_clause = implode( ' AND ', $where );
 
-            return (int) $wpdb->get_var( $sql );
-        }
+			// Filter out empty values to prevent UnfinishedPrepare warning when $values contains empty strings.
+			$values = array_filter( $values );
 
-        public function get_pending() {
-            global $wpdb;
-            return $wpdb->get_results( "SELECT * FROM {$this->table_name} WHERE status IN ('pending', 'processing') ORDER BY created_at ASC" );
-        }
+			$table = esc_sql( $this->table_name );
 
-        public function delete( $id ) {
-            global $wpdb;
-            return $wpdb->delete( $this->table_name, array( 'id' => $id ) );
-        }
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}";
 
-        public function delete_bulk( $ids ) {
-            global $wpdb;
-            $ids = array_map( 'intval', $ids );
-            $ids_string = implode( ',', $ids );
-            return $wpdb->query( "DELETE FROM {$this->table_name} WHERE id IN ({$ids_string})" );
-        }
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			return (int) $wpdb->get_var( $wpdb->prepare( $sql, $values ) );
+		}
 
-        public function get_stats( $post_type = '' ) {
-            global $wpdb;
+		public function get_pending() {
+			global $wpdb;
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return $wpdb->get_results(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT * FROM {$this->table_name}
+				 WHERE status IN ('pending', 'processing')
+				 AND job_id IS NOT NULL
+				 AND job_id != ''
+				 ORDER BY created_at ASC"
+			);
+		}
 
-            $where = '';
-            if ( ! empty( $post_type ) ) {
-                $where = $wpdb->prepare( " WHERE post_type = %s", $post_type );
-            }
+		public function delete( $id ) {
+			global $wpdb;
+			return $wpdb->delete(
+				$this->table_name,
+				array( 'id' => $id )
+			);
+		}
 
-            $results = $wpdb->get_results( "SELECT status, COUNT(*) as count FROM {$this->table_name} {$where} GROUP BY status" );
+		public function delete_bulk( $ids ) {
+			global $wpdb;
 
-            $stats = array(
-                'total'      => 0,
-                'pending'    => 0,
-                'processing' => 0,
-                'success'    => 0,
-                'error'      => 0,
-            );
+			if ( empty( $ids ) || ! is_array( $ids ) ) {
+				return false;
+			}
 
-            foreach ( $results as $row ) {
-                $stats[ $row->status ] = (int) $row->count;
-                $stats['total'] += (int) $row->count;
-            }
+			// All IDs are cast to integers — no user string input reaches the query.
+			$ids          = array_map( 'intval', $ids );
+			$placeholders = implode( ',', $ids ); // safe: all values are intval()'d integers
+			$table        = esc_sql( $this->table_name );
 
-            $health_results = $wpdb->get_results( "SELECT link_health, COUNT(*) as count FROM {$this->table_name} {$where} GROUP BY link_health" );
-            $stats['healthy']   = 0;
-            $stats['unhealthy'] = 0;
-            $stats['unknown']   = 0;
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return $wpdb->query( "DELETE FROM {$table} WHERE id IN ({$placeholders})" );
+		}
 
-            foreach ( $health_results as $row ) {
-                $stats[ $row->link_health ] = (int) $row->count;
-            }
+		public function get_stats( $post_type = '' ) {
+			global $wpdb;
 
-            if ( empty( $post_type ) ) {
-                $type_results = $wpdb->get_results( "SELECT post_type, COUNT(*) as count FROM {$this->table_name} GROUP BY post_type" );
-                $stats['posts'] = 0;
-                $stats['pages'] = 0;
+			$table = esc_sql( $this->table_name );
 
-                foreach ( $type_results as $row ) {
-                    if ( $row->post_type === 'post' ) {
-                        $stats['posts'] = (int) $row->count;
-                    } elseif ( $row->post_type === 'page' ) {
-                        $stats['pages'] = (int) $row->count;
-                    }
-                }
-            }
+			if ( ! empty( $post_type ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$status_sql = $wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT status, COUNT(*) as count FROM {$table} WHERE post_type = %s GROUP BY status",
+					$post_type
+				);
+			} else {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$status_sql = "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status";
+			}
 
-            return $stats;
-        }
-    }
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$results = $wpdb->get_results( $status_sql );
+
+			$stats = array(
+				'total'      => 0,
+				'pending'    => 0,
+				'processing' => 0,
+				'success'    => 0,
+				'error'      => 0,
+				'completed'  => 0,
+			);
+
+			foreach ( $results as $row ) {
+				if ( isset( $stats[ $row->status ] ) ) {
+					$stats[ $row->status ] = (int) $row->count;
+					$stats['total']       += (int) $row->count;
+				}
+			}
+
+			if ( ! empty( $post_type ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$health_sql = $wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT link_health, COUNT(*) as count FROM {$table} WHERE post_type = %s GROUP BY link_health",
+					$post_type
+				);
+			} else {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$health_sql = "SELECT link_health, COUNT(*) as count FROM {$table} GROUP BY link_health";
+			}
+
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			$health_results = $wpdb->get_results( $health_sql );
+
+			$stats['healthy']   = 0;
+			$stats['unhealthy'] = 0;
+			$stats['unknown']   = 0;
+
+			foreach ( $health_results as $row ) {
+				if ( isset( $stats[ $row->link_health ] ) ) {
+					$stats[ $row->link_health ] = (int) $row->count;
+				}
+			}
+
+			if ( empty( $post_type ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$type_results = $wpdb->get_results(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT post_type, COUNT(*) as count FROM {$table} GROUP BY post_type"
+				);
+
+				$stats['posts'] = 0;
+				$stats['pages'] = 0;
+
+				foreach ( $type_results as $row ) {
+					if ( 'post' === $row->post_type ) {
+						$stats['posts'] = (int) $row->count;
+					}
+					if ( 'page' === $row->post_type ) {
+						$stats['pages'] = (int) $row->count;
+					}
+				}
+			}
+
+			return $stats;
+		}
+	}
 }

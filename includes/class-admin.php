@@ -35,8 +35,8 @@ class WebClyde_Content_Vault_Admin {
     
     public function add_menu_pages() {
         add_menu_page(
-            __('Content Vault', 'webclyde-content-vault'),
-            __('Content Vault', 'webclyde-content-vault'),
+            __('Content Vault', 'content-vault'),
+            __('Content Vault', 'content-vault'),
             'manage_options',
             'content-vault',
             array($this, 'render_dashboard_page'),
@@ -46,8 +46,8 @@ class WebClyde_Content_Vault_Admin {
         
         add_submenu_page(
             'content-vault',
-            __('Dashboard', 'webclyde-content-vault'),
-            __('Dashboard', 'webclyde-content-vault'),
+            __('Dashboard', 'content-vault'),
+            __('Dashboard', 'content-vault'),
             'manage_options',
             'content-vault',
             array($this, 'render_dashboard_page')
@@ -55,8 +55,8 @@ class WebClyde_Content_Vault_Admin {
         
         add_submenu_page(
             'content-vault',
-            __('Settings', 'webclyde-content-vault'),
-            __('Settings', 'webclyde-content-vault'),
+            __('Settings', 'content-vault'),
+            __('Settings', 'content-vault'),
             'manage_options',
             'content-vault-settings',
             array($this, 'render_settings_page')
@@ -64,8 +64,8 @@ class WebClyde_Content_Vault_Admin {
         
         add_submenu_page(
             'content-vault',
-            __('All Logs', 'webclyde-content-vault'),
-            __('All Logs', 'webclyde-content-vault'),
+            __('All Logs', 'content-vault'),
+            __('All Logs', 'content-vault'),
             'manage_options',
             'content-vault-logs',
             array($this, 'render_logs_page')
@@ -73,8 +73,8 @@ class WebClyde_Content_Vault_Admin {
         
         add_submenu_page(
             'content-vault',
-            __('Post Logs', 'webclyde-content-vault'),
-            __('Post Logs', 'webclyde-content-vault'),
+            __('Post Logs', 'content-vault'),
+            __('Post Logs', 'content-vault'),
             'manage_options',
             'content-vault-posts',
             array($this, 'render_post_logs_page')
@@ -82,8 +82,8 @@ class WebClyde_Content_Vault_Admin {
         
         add_submenu_page(
             'content-vault',
-            __('Page Logs', 'webclyde-content-vault'),
-            __('Page Logs', 'webclyde-content-vault'),
+            __('Page Logs', 'content-vault'),
+            __('Page Logs', 'content-vault'),
             'manage_options',
             'content-vault-pages',
             array($this, 'render_page_logs_page')
@@ -114,11 +114,11 @@ class WebClyde_Content_Vault_Admin {
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('webclyde_content_vault_nonce'),
             'strings' => array(
-                'confirm_delete' => __('Are you sure you want to delete this log?', 'webclyde-content-vault'),
-                'confirm_bulk_delete' => __('Are you sure you want to delete selected logs?', 'webclyde-content-vault'),
-                'saving' => __('Saving...', 'webclyde-content-vault'),
-                'testing' => __('Testing...', 'webclyde-content-vault'),
-                'checking' => __('Checking...', 'webclyde-content-vault')
+                'confirm_delete' => __('Are you sure you want to delete this log?', 'content-vault'),
+                'confirm_bulk_delete' => __('Are you sure you want to delete selected logs?', 'content-vault'),
+                'saving' => __('Saving...', 'content-vault'),
+                'testing' => __('Testing...', 'content-vault'),
+                'checking' => __('Checking...', 'content-vault')
             )
         ));
         
@@ -660,24 +660,24 @@ class WebClyde_Content_Vault_Admin {
         ?>
         <div class="wrap webclyde-wrap">
             <div class="webclyde-header">
-                <h1><?php esc_html_e('Content Vault', 'webclyde-content-vault'); ?></h1>
-                <p><?php esc_html_e('Archive your WordPress content to the Content Vault automatically', 'webclyde-content-vault'); ?></p>
+                <h1><?php esc_html_e('Content Vault', 'content-vault'); ?></h1>
+                <p><?php esc_html_e('Archive your WordPress content to the Content Vault automatically', 'content-vault'); ?></p>
             </div>
             
             
             <div class="webclyde-box">
-                <h2><?php esc_html_e('System Status', 'webclyde-content-vault'); ?></h2>
+                <h2><?php esc_html_e('System Status', 'content-vault'); ?></h2>
                 <div class="webclyde-system-status">
                     <div class="webclyde-status-item">
                         <div class="icon <?php echo class_exists('ActionScheduler') ? 'active' : 'inactive'; ?>">
                             <?php echo class_exists('ActionScheduler') ? '✓' : '✗'; ?>
                         </div>
                         <div>
-                            <strong><?php esc_html_e('Action Scheduler', 'webclyde-content-vault'); ?></strong>
+                            <strong><?php esc_html_e('Action Scheduler', 'content-vault'); ?></strong>
                             <div class="webclyde-time">
                                 <?php echo class_exists('ActionScheduler') 
-                                    ? esc_html__('Active', 'webclyde-content-vault') 
-                                    : esc_html__('Not installed - Using WP Cron', 'webclyde-content-vault'); ?>
+                                    ? esc_html__('Active', 'content-vault') 
+                                    : esc_html__('Not installed - Using WP Cron', 'content-vault'); ?>
                             </div>
                         </div>
                     </div>
@@ -686,11 +686,11 @@ class WebClyde_Content_Vault_Admin {
                             <?php echo $this->settings->has_api_keys() ? '✓' : '✗'; ?>
                         </div>
                         <div>
-                            <strong><?php esc_html_e('API Keys', 'webclyde-content-vault'); ?></strong>
+                            <strong><?php esc_html_e('API Keys', 'content-vault'); ?></strong>
                             <div class="webclyde-time">
                                 <?php echo $this->settings->has_api_keys() 
-                                    ? esc_html__('Configured', 'webclyde-content-vault') 
-                                    : esc_html__('Not configured', 'webclyde-content-vault'); ?>
+                                    ? esc_html__('Configured', 'content-vault') 
+                                    : esc_html__('Not configured', 'content-vault'); ?>
                             </div>
                         </div>
                     </div>
@@ -699,11 +699,11 @@ class WebClyde_Content_Vault_Admin {
                             <?php echo $this->settings->get('enable_posts') ? '✓' : '✗'; ?>
                         </div>
                         <div>
-                            <strong><?php esc_html_e('Post Archiving', 'webclyde-content-vault'); ?></strong>
+                            <strong><?php esc_html_e('Post Archiving', 'content-vault'); ?></strong>
                             <div class="webclyde-time">
                                 <?php echo $this->settings->get('enable_posts') 
-                                    ? esc_html__('Enabled', 'webclyde-content-vault') 
-                                    : esc_html__('Disabled', 'webclyde-content-vault'); ?>
+                                    ? esc_html__('Enabled', 'content-vault') 
+                                    : esc_html__('Disabled', 'content-vault'); ?>
                             </div>
                         </div>
                     </div>
@@ -712,57 +712,57 @@ class WebClyde_Content_Vault_Admin {
                             <?php echo $this->settings->get('enable_pages') ? '✓' : '✗'; ?>
                         </div>
                         <div>
-                            <strong><?php esc_html_e('Page Archiving', 'webclyde-content-vault'); ?></strong>
+                            <strong><?php esc_html_e('Page Archiving', 'content-vault'); ?></strong>
                             <div class="webclyde-time">
                                 <?php echo $this->settings->get('enable_pages') 
-                                    ? esc_html__('Enabled', 'webclyde-content-vault') 
-                                    : esc_html__('Disabled', 'webclyde-content-vault'); ?>
+                                    ? esc_html__('Enabled', 'content-vault') 
+                                    : esc_html__('Disabled', 'content-vault'); ?>
                             </div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="webclyde-quick-links">
-                    <a href="<?php echo admin_url('admin.php?page=content-vault-settings'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=content-vault-settings')); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-admin-generic"></span>
                         <div>
-                            <strong><?php esc_html_e('Settings', 'webclyde-content-vault'); ?></strong>
-                            <div class="webclyde-time"><?php esc_html_e('Configure API keys and options', 'webclyde-content-vault'); ?></div>
+                            <strong><?php esc_html_e('Settings', 'content-vault'); ?></strong>
+                            <div class="webclyde-time"><?php esc_html_e('Configure API keys and options', 'content-vault'); ?></div>
                         </div>
                     </a>
-                    <a href="<?php echo admin_url('admin.php?page=content-vault-logs'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=content-vault-logs')); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-list-view"></span>
                         <div>
-                            <strong><?php esc_html_e('All Logs', 'webclyde-content-vault'); ?></strong>
-                            <div class="webclyde-time"><?php esc_html_e('View all archive logs', 'webclyde-content-vault'); ?></div>
+                            <strong><?php esc_html_e('All Logs', 'content-vault'); ?></strong>
+                            <div class="webclyde-time"><?php esc_html_e('View all archive logs', 'content-vault'); ?></div>
                         </div>
                     </a>
-                    <a href="<?php echo admin_url('admin.php?page=content-vault-posts'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=content-vault-posts')); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-admin-post"></span>
                         <div>
-                            <strong><?php esc_html_e('Post Logs', 'webclyde-content-vault'); ?></strong>
-                            <div class="webclyde-time"><?php esc_html_e('View post archive logs', 'webclyde-content-vault'); ?></div>
+                            <strong><?php esc_html_e('Post Logs', 'content-vault'); ?></strong>
+                            <div class="webclyde-time"><?php esc_html_e('View post archive logs', 'content-vault'); ?></div>
                         </div>
                     </a>
-                    <a href="<?php echo admin_url('admin.php?page=content-vault-pages'); ?>" class="webclyde-quick-link">
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=content-vault-pages')); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-admin-page"></span>
                         <div>
-                            <strong><?php esc_html_e('Page Logs', 'webclyde-content-vault'); ?></strong>
-                            <div class="webclyde-time"><?php esc_html_e('View page archive logs', 'webclyde-content-vault'); ?></div>
+                            <strong><?php esc_html_e('Page Logs', 'content-vault'); ?></strong>
+                            <div class="webclyde-time"><?php esc_html_e('View page archive logs', 'content-vault'); ?></div>
                         </div>
                     </a>
                 </div>
             </div>
             
             <div class="webclyde-box">
-                <h2><?php esc_html_e('Link Health Overview', 'webclyde-content-vault'); ?></h2>
+                <h2><?php esc_html_e('Link Health Overview', 'content-vault'); ?></h2>
                 <div class="webclyde-cards" style="margin-bottom: 0;">
                     <div class="webclyde-card success">
-                        <h3><?php esc_html_e('Healthy Links', 'webclyde-content-vault'); ?></h3>
+                        <h3><?php esc_html_e('Healthy Links', 'content-vault'); ?></h3>
                         <div class="number"><?php echo esc_html($stats['healthy']); ?></div>
                     </div>
                     <div class="webclyde-card">
-                        <h3><?php esc_html_e('Unknown Status', 'webclyde-content-vault'); ?></h3>
+                        <h3><?php esc_html_e('Unknown Status', 'content-vault'); ?></h3>
                         <div class="number"><?php echo esc_html($stats['unknown']); ?></div>
                     </div>
                 </div>
@@ -775,107 +775,107 @@ class WebClyde_Content_Vault_Admin {
         ?>
         <div class="wrap webclyde-wrap">
             <div class="webclyde-header">
-                <h1><?php esc_html_e('Settings', 'webclyde-content-vault'); ?></h1>
-                <p><?php esc_html_e('Configure your Content Vault API settings', 'webclyde-content-vault'); ?></p>
+                <h1><?php esc_html_e('Settings', 'content-vault'); ?></h1>
+                <p><?php esc_html_e('Configure your Content Vault API settings', 'content-vault'); ?></p>
             </div>
             
             <form id="webclyde-settings-form">
                 <div class="webclyde-box">
-                    <h2><?php esc_html_e('API Configuration', 'webclyde-content-vault'); ?></h2>
+                    <h2><?php esc_html_e('API Configuration', 'content-vault'); ?></h2>
                     
                     <div class="webclyde-form-row">
-                        <label for="access_key"><?php esc_html_e('Access Key', 'webclyde-content-vault'); ?></label>
+                        <label for="access_key"><?php esc_html_e('Access Key', 'content-vault'); ?></label>
                         <input type="text" id="access_key" name="access_key" 
                                value="<?php echo esc_attr($this->settings->get('access_key')); ?>" 
-                               placeholder="<?php esc_attr_e('Your S3 Access Key', 'webclyde-content-vault'); ?>">
-                        <p class="description"><?php esc_html_e('Get your keys from archive.org/account/s3.php', 'webclyde-content-vault'); ?></p>
+                               placeholder="<?php esc_attr_e('Your S3 Access Key', 'content-vault'); ?>">
+                        <p class="description"><?php esc_html_e('Get your keys from archive.org/account/s3.php', 'content-vault'); ?></p>
                     </div>
                     
                     <div class="webclyde-form-row">
-                        <label for="secret_key"><?php esc_html_e('Secret Key', 'webclyde-content-vault'); ?></label>
+                        <label for="secret_key"><?php esc_html_e('Secret Key', 'content-vault'); ?></label>
                         <input type="password" id="secret_key" name="secret_key" 
                                value="<?php echo esc_attr($this->settings->get('secret_key')); ?>" 
-                               placeholder="<?php esc_attr_e('Your S3 Secret Key', 'webclyde-content-vault'); ?>">
+                               placeholder="<?php esc_attr_e('Your S3 Secret Key', 'content-vault'); ?>">
                     </div>
                     
                     <button type="button" id="webclyde-test-connection" class="webclyde-btn webclyde-btn-secondary">
                         <span class="dashicons dashicons-networking"></span>
-                        <?php esc_html_e('Test Connection', 'webclyde-content-vault'); ?>
+                        <?php esc_html_e('Test Connection', 'content-vault'); ?>
                     </button>
                 </div>
                 
                 <div class="webclyde-box">
-                    <h2><?php esc_html_e('Post Archiving', 'webclyde-content-vault'); ?></h2>
+                    <h2><?php esc_html_e('Post Archiving', 'content-vault'); ?></h2>
                     
                     <div class="webclyde-checkbox-row">
                         <input type="checkbox" id="enable_posts" name="enable_posts" value="1" 
                                <?php checked($this->settings->get('enable_posts'), 1); ?>>
-                        <label for="enable_posts"><?php esc_html_e('Enable automatic archiving for Posts', 'webclyde-content-vault'); ?></label>
+                        <label for="enable_posts"><?php esc_html_e('Enable automatic archiving for Posts', 'content-vault'); ?></label>
                     </div>
                     <p class="description" style="margin-left: 30px; margin-top: -5px;">
-                        <?php esc_html_e('When enabled, posts will be automatically sent to Content Vault when published.', 'webclyde-content-vault'); ?>
+                        <?php esc_html_e('When enabled, posts will be automatically sent to Content Vault when published.', 'content-vault'); ?>
                     </p>
                 </div>
                 
                 <div class="webclyde-box">
-                    <h2><?php esc_html_e('Page Archiving', 'webclyde-content-vault'); ?></h2>
+                    <h2><?php esc_html_e('Page Archiving', 'content-vault'); ?></h2>
                     
                     <div class="webclyde-checkbox-row">
                         <input type="checkbox" id="enable_pages" name="enable_pages" value="1" 
                                <?php checked($this->settings->get('enable_pages'), 1); ?>>
-                        <label for="enable_pages"><?php esc_html_e('Enable automatic archiving for Pages', 'webclyde-content-vault'); ?></label>
+                        <label for="enable_pages"><?php esc_html_e('Enable automatic archiving for Pages', 'content-vault'); ?></label>
                     </div>
                     <p class="description" style="margin-left: 30px; margin-top: -5px;">
-                        <?php esc_html_e('When enabled, pages will be automatically sent to Content Vault when published.', 'webclyde-content-vault'); ?>
+                        <?php esc_html_e('When enabled, pages will be automatically sent to Content Vault when published.', 'content-vault'); ?>
                     </p>
                 </div>
                 
                 <div class="webclyde-box">
-                    <h2><?php esc_html_e('Advanced Settings', 'webclyde-content-vault'); ?></h2>
+                    <h2><?php esc_html_e('Advanced Settings', 'content-vault'); ?></h2>
                     
                     <div class="webclyde-form-row">
-                        <label for="check_interval"><?php esc_html_e('Status Check Interval (minutes)', 'webclyde-content-vault'); ?></label>
+                        <label for="check_interval"><?php esc_html_e('Status Check Interval (minutes)', 'content-vault'); ?></label>
                         <input type="number" id="check_interval" name="check_interval" 
                                value="<?php echo esc_attr($this->settings->get('check_interval', 2)); ?>" 
                                min="1" max="60" style="width: 100px;">
-                        <p class="description"><?php esc_html_e('How often to check for pending archive status (1-60 minutes)', 'webclyde-content-vault'); ?></p>
+                        <p class="description"><?php esc_html_e('How often to check for pending archive status (1-60 minutes)', 'content-vault'); ?></p>
                     </div>
                     
                     <div class="webclyde-form-row">
-                        <label for="max_attempts"><?php esc_html_e('Maximum Check Attempts', 'webclyde-content-vault'); ?></label>
+                        <label for="max_attempts"><?php esc_html_e('Maximum Check Attempts', 'content-vault'); ?></label>
                         <input type="number" id="max_attempts" name="max_attempts" 
                                value="<?php echo esc_attr($this->settings->get('max_attempts', 15)); ?>" 
                                min="1" max="50" style="width: 100px;">
-                        <p class="description"><?php esc_html_e('Maximum number of status checks before marking as error (1-50)', 'webclyde-content-vault'); ?></p>
+                        <p class="description"><?php esc_html_e('Maximum number of status checks before marking as error (1-50)', 'content-vault'); ?></p>
                     </div>
                     
                     <div class="webclyde-checkbox-row">
                         <input type="checkbox" id="check_link_health" name="check_link_health" value="1" 
                                <?php checked($this->settings->get('check_link_health'), 1); ?>>
-                        <label for="check_link_health"><?php esc_html_e('Check Link Health', 'webclyde-content-vault'); ?></label>
+                        <label for="check_link_health"><?php esc_html_e('Check Link Health', 'content-vault'); ?></label>
                     </div>
                     <p class="description" style="margin-left: 30px; margin-top: -5px;">
-                        <?php esc_html_e('Verify that snapshot URLs are accessible after archiving', 'webclyde-content-vault'); ?>
+                        <?php esc_html_e('Verify that snapshot URLs are accessible after archiving', 'content-vault'); ?>
                     </p>
                 </div>
                 
                 <div class="webclyde-box">
-                    <h2><?php esc_html_e('404 Error Handling', 'webclyde-content-vault'); ?></h2>
+                    <h2><?php esc_html_e('404 Error Handling', 'content-vault'); ?></h2>
                     
                     <div class="webclyde-form-row">
-                        <label for="broken_link_action"><?php esc_html_e('Broken Link Action', 'webclyde-content-vault'); ?></label>
+                        <label for="broken_link_action"><?php esc_html_e('Broken Link Action', 'content-vault'); ?></label>
                         <select id="broken_link_action" name="broken_link_action" style="max-width: 400px; padding: 10px 15px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                            <option value="none" <?php selected($this->settings->get('broken_link_action', 'none'), 'none'); ?>><?php esc_html_e('Do Nothing (Default)', 'webclyde-content-vault'); ?></option>
-                            <option value="direct" <?php selected($this->settings->get('broken_link_action', 'none'), 'direct'); ?>><?php esc_html_e('Direct redirect to Wayback Machine', 'webclyde-content-vault'); ?></option>
-                            <option value="404_page" <?php selected($this->settings->get('broken_link_action', 'none'), '404_page'); ?>><?php esc_html_e('Show 404 page with Archive Link banner', 'webclyde-content-vault'); ?></option>
+                            <option value="none" <?php selected($this->settings->get('broken_link_action', 'none'), 'none'); ?>><?php esc_html_e('Do Nothing (Default)', 'content-vault'); ?></option>
+                            <option value="direct" <?php selected($this->settings->get('broken_link_action', 'none'), 'direct'); ?>><?php esc_html_e('Direct redirect to Wayback Machine', 'content-vault'); ?></option>
+                            <option value="404_page" <?php selected($this->settings->get('broken_link_action', 'none'), '404_page'); ?>><?php esc_html_e('Show 404 page with Archive Link banner', 'content-vault'); ?></option>
                         </select>
-                        <p class="description"><?php esc_html_e('If a user hits a 404 page, check the internet archive for a snapshot.', 'webclyde-content-vault'); ?></p>
+                        <p class="description"><?php esc_html_e('If a user hits a 404 page, check the internet archive for a snapshot.', 'content-vault'); ?></p>
                     </div>
                 </div>
                 
                 <button type="submit" class="webclyde-btn webclyde-btn-primary">
                     <span class="dashicons dashicons-saved"></span>
-                    <?php esc_html_e('Save Settings', 'webclyde-content-vault'); ?>
+                    <?php esc_html_e('Save Settings', 'content-vault'); ?>
                 </button>
             </form>
         </div>
@@ -912,15 +912,15 @@ class WebClyde_Content_Vault_Admin {
         $stats = $this->logger->get_stats($post_type);
         
         $page_titles = array(
-            '' => __('All Logs', 'webclyde-content-vault'),
-            'post' => __('Post Logs', 'webclyde-content-vault'),
-            'page' => __('Page Logs', 'webclyde-content-vault')
+            '' => __('All Logs', 'content-vault'),
+            'post' => __('Post Logs', 'content-vault'),
+            'page' => __('Page Logs', 'content-vault')
         );
         
         $page_descriptions = array(
-            '' => __('View all archive logs for posts and pages', 'webclyde-content-vault'),
-            'post' => __('View archive logs for posts only', 'webclyde-content-vault'),
-            'page' => __('View archive logs for pages only', 'webclyde-content-vault')
+            '' => __('View all archive logs for posts and pages', 'content-vault'),
+            'post' => __('View archive logs for posts only', 'content-vault'),
+            'page' => __('View archive logs for pages only', 'content-vault')
         );
         ?>
         <div class="wrap webclyde-wrap">
@@ -931,29 +931,29 @@ class WebClyde_Content_Vault_Admin {
             
             
             <div class="webclyde-box">
-                <h2><?php esc_html_e('Archive Logs', 'webclyde-content-vault'); ?></h2>
+                <h2><?php esc_html_e('Archive Logs', 'content-vault'); ?></h2>
                 
                 <div class="webclyde-filters">
                     <form method="get" style="display: flex; gap: 15px; align-items: center;">
-                        <input type="hidden" name="page" value="<?php echo esc_attr($_GET['page']); ?>">
+                        <input type="hidden" name="page" value="<?php echo esc_attr( sanitize_text_field( $_GET['page'] ) ); ?>">
                         
                         <select name="status" onchange="this.form.submit()">
-                            <option value=""><?php esc_html_e('All Statuses', 'webclyde-content-vault'); ?></option>
-                            <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php esc_html_e('Pending', 'webclyde-content-vault'); ?></option>
-                            <option value="processing" <?php selected($status_filter, 'processing'); ?>><?php esc_html_e('Processing', 'webclyde-content-vault'); ?></option>
-                            <option value="success" <?php selected($status_filter, 'success'); ?>><?php esc_html_e('Success', 'webclyde-content-vault'); ?></option>
-                            <option value="error" <?php selected($status_filter, 'error'); ?>><?php esc_html_e('Error', 'webclyde-content-vault'); ?></option>
+                            <option value=""><?php esc_html_e('All Statuses', 'content-vault'); ?></option>
+                            <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php esc_html_e('Pending', 'content-vault'); ?></option>
+                            <option value="processing" <?php selected($status_filter, 'processing'); ?>><?php esc_html_e('Processing', 'content-vault'); ?></option>
+                            <option value="success" <?php selected($status_filter, 'success'); ?>><?php esc_html_e('Success', 'content-vault'); ?></option>
+                            <option value="error" <?php selected($status_filter, 'error'); ?>><?php esc_html_e('Error', 'content-vault'); ?></option>
                         </select>
                     </form>
                     
                     <button type="button" id="webclyde-bulk-delete" class="webclyde-btn webclyde-btn-danger webclyde-btn-small">
                         <span class="dashicons dashicons-trash"></span>
-                        <?php esc_html_e('Delete Selected', 'webclyde-content-vault'); ?>
+                        <?php esc_html_e('Delete Selected', 'content-vault'); ?>
                     </button>
                 </div>
                 
                 <?php if (empty($logs)): ?>
-                    <p><?php esc_html_e('No logs found.', 'webclyde-content-vault'); ?></p>
+                    <p><?php esc_html_e('No logs found.', 'content-vault'); ?></p>
                 <?php else: ?>
                     <table class="webclyde-table">
                         <thead>
@@ -961,20 +961,20 @@ class WebClyde_Content_Vault_Admin {
                                 <th style="width: 30px;">
                                     <input type="checkbox" id="webclyde-select-all">
                                 </th>
-                                <th><?php esc_html_e('Content', 'webclyde-content-vault'); ?></th>
-                                <th><?php esc_html_e('URL', 'webclyde-content-vault'); ?></th>
-                                <th><?php esc_html_e('Archive Status', 'webclyde-content-vault'); ?></th>
-                                <th><?php esc_html_e('Link Health', 'webclyde-content-vault'); ?></th>
-                                <th><?php esc_html_e('Times Checked', 'webclyde-content-vault'); ?></th>
-                                <th><?php esc_html_e('Last Check', 'webclyde-content-vault'); ?></th>
-                                <th><?php esc_html_e('Actions', 'webclyde-content-vault'); ?></th>
+                                <th><?php esc_html_e('Content', 'content-vault'); ?></th>
+                                <th><?php esc_html_e('URL', 'content-vault'); ?></th>
+                                <th><?php esc_html_e('Archive Status', 'content-vault'); ?></th>
+                                <th><?php esc_html_e('Link Health', 'content-vault'); ?></th>
+                                <th><?php esc_html_e('Times Checked', 'content-vault'); ?></th>
+                                <th><?php esc_html_e('Last Check', 'content-vault'); ?></th>
+                                <th><?php esc_html_e('Actions', 'content-vault'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($logs as $log): 
                                 $post_title = get_the_title($log->post_id);
                                 if (empty($post_title)) {
-                                    $post_title = __('(No title)', 'webclyde-content-vault');
+                                    $post_title = __('(No title)', 'content-vault');
                                 }
                             ?>
                             <tr>
@@ -1004,7 +1004,7 @@ class WebClyde_Content_Vault_Admin {
                                     <?php if ($log->snapshot_url): ?>
                                         <div class="webclyde-url" style="margin-top: 5px;">
                                             <a href="<?php echo esc_url($log->snapshot_url); ?>" target="_blank" style="color: #10b981;">
-                                                📸 <?php esc_html_e('View Snapshot', 'webclyde-content-vault'); ?>
+                                                📸 <?php esc_html_e('View Snapshot', 'content-vault'); ?>
                                             </a>
                                         </div>
                                     <?php endif; ?>
@@ -1049,9 +1049,11 @@ class WebClyde_Content_Vault_Admin {
                                 <td>
                                     <strong><?php echo esc_html($log->attempts); ?></strong>
                                     <div class="webclyde-time">
-                                        <?php printf(
-                                            esc_html__('of %d max', 'webclyde-content-vault'),
-                                            $this->settings->get('max_attempts', 15)
+                                    
+                                        <?php 
+                                        /* translators: %d is the maximum number of attempts allowed. */
+                                        printf( esc_html__('of %d max', 'content-vault'),
+                                            (int) $this->settings->get('max_attempts', 15)
                                         ); ?>
                                     </div>
                                 </td>
@@ -1062,7 +1064,7 @@ class WebClyde_Content_Vault_Admin {
                                             <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($log->last_checked))); ?>
                                         </div>
                                     <?php else: ?>
-                                        <span class="webclyde-time"><?php esc_html_e('Never', 'webclyde-content-vault'); ?></span>
+                                        <span class="webclyde-time"><?php esc_html_e('Never', 'content-vault'); ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -1070,27 +1072,27 @@ class WebClyde_Content_Vault_Admin {
                                         <?php if ($log->job_id && in_array($log->status, array('pending', 'processing'))): ?>
                                             <button type="button" class="webclyde-btn webclyde-btn-secondary webclyde-btn-small webclyde-check-status" 
                                                     data-job-id="<?php echo esc_attr($log->job_id); ?>">
-                                                <?php esc_html_e('Check', 'webclyde-content-vault'); ?>
+                                                <?php esc_html_e('Check', 'content-vault'); ?>
                                             </button>
                                         <?php endif; ?>
                                         
                                         <?php if ($log->snapshot_url): ?>
                                             <button type="button" class="webclyde-btn webclyde-btn-secondary webclyde-btn-small webclyde-check-health" 
                                                     data-log-id="<?php echo esc_attr($log->id); ?>">
-                                                <?php esc_html_e('Health', 'webclyde-content-vault'); ?>
+                                                <?php esc_html_e('Health', 'content-vault'); ?>
                                             </button>
                                         <?php endif; ?>
                                         
                                         <?php if ($log->status === 'error'): ?>
                                             <button type="button" class="webclyde-btn webclyde-btn-primary webclyde-btn-small webclyde-retry" 
                                                     data-log-id="<?php echo esc_attr($log->id); ?>">
-                                                <?php esc_html_e('Retry', 'webclyde-content-vault'); ?>
+                                                <?php esc_html_e('Retry', 'content-vault'); ?>
                                             </button>
                                         <?php endif; ?>
                                         
                                         <button type="button" class="webclyde-btn webclyde-btn-danger webclyde-btn-small webclyde-delete" 
                                                 data-log-id="<?php echo esc_attr($log->id); ?>">
-                                            <?php esc_html_e('Delete', 'webclyde-content-vault'); ?>
+                                            <?php esc_html_e('Delete', 'content-vault'); ?>
                                         </button>
                                     </div>
                                 </td>
@@ -1101,31 +1103,32 @@ class WebClyde_Content_Vault_Admin {
                     
                     <?php if ($total_pages > 1): ?>
                         <div class="webclyde-pagination">
-                            <span><?php printf(
-                                esc_html__('Showing %1$d-%2$d of %3$d logs', 'webclyde-content-vault'),
-                                (($page - 1) * $per_page) + 1,
-                                min($page * $per_page, $total),
-                                $total
+                            <span><?php 
+                            /* translators: %1$d-%2$d is the range of logs being displayed, %3$d is the total number of logs. */
+                            printf( esc_html__('Showing %1$d-%2$d of %3$d logs', 'content-vault'),
+                                (int) (($page - 1) * $per_page) + 1,
+                                (int) min($page * $per_page, $total),
+                                (int) $total
                             ); ?></span>
                             
                             <div>
                                 <?php
                                 $base_url = add_query_arg(array(
-                                    'page' => $_GET['page'],
+                                    'page' => sanitize_text_field( $_GET['page'] ),
                                     'status' => $status_filter
                                 ), admin_url('admin.php'));
                                 
                                 if ($page > 1): ?>
                                     <a href="<?php echo esc_url(add_query_arg('paged', $page - 1, $base_url)); ?>" 
                                        class="webclyde-btn webclyde-btn-secondary webclyde-btn-small">
-                                        ← <?php esc_html_e('Previous', 'webclyde-content-vault'); ?>
+                                        ← <?php esc_html_e('Previous', 'content-vault'); ?>
                                     </a>
                                 <?php endif; ?>
                                 
                                 <?php if ($page < $total_pages): ?>
                                     <a href="<?php echo esc_url(add_query_arg('paged', $page + 1, $base_url)); ?>" 
                                        class="webclyde-btn webclyde-btn-secondary webclyde-btn-small">
-                                        <?php esc_html_e('Next', 'webclyde-content-vault'); ?> →
+                                        <?php esc_html_e('Next', 'content-vault'); ?> →
                                     </a>
                                 <?php endif; ?>
                             </div>
@@ -1142,12 +1145,12 @@ class WebClyde_Content_Vault_Admin {
         check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied', 'webclyde-content-vault'));
+            wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
         parse_str($_POST['data'], $data);
         
-        $fields = array('access_key', 'secret_key', 'enable_posts', 'enable_pages', 'check_interval', 'max_attempts', 'check_link_health');
+        $fields = array('access_key', 'secret_key', 'enable_posts', 'enable_pages', 'check_interval', 'max_attempts', 'check_link_health', 'broken_link_action');
         
         foreach ($fields as $field) {
             $value = isset($data[$field]) ? $data[$field] : '';
@@ -1164,7 +1167,7 @@ class WebClyde_Content_Vault_Admin {
         check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied', 'webclyde-content-vault'));
+            wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
         $result = $this->api->test_connection();
@@ -1180,7 +1183,7 @@ class WebClyde_Content_Vault_Admin {
         check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied', 'webclyde-content-vault'));
+            wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
         $job_id = sanitize_text_field($_POST['job_id']);
@@ -1193,7 +1196,7 @@ class WebClyde_Content_Vault_Admin {
         check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied', 'webclyde-content-vault'));
+            wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
         $log_id = (int) $_POST['log_id'];
@@ -1206,14 +1209,14 @@ class WebClyde_Content_Vault_Admin {
         check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied', 'webclyde-content-vault'));
+            wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
         $log_id = (int) $_POST['log_id'];
         $log = $this->logger->get($log_id);
         
         if (!$log) {
-            wp_send_json_error(__('Log not found', 'webclyde-content-vault'));
+            wp_send_json_error(__('Log not found', 'content-vault'));
         }
         
         $result = $this->api->submit_url($log->url);
@@ -1240,7 +1243,7 @@ class WebClyde_Content_Vault_Admin {
         check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied', 'webclyde-content-vault'));
+            wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
         $log_id = (int) $_POST['log_id'];
@@ -1253,7 +1256,7 @@ class WebClyde_Content_Vault_Admin {
         check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Permission denied', 'webclyde-content-vault'));
+            wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
         $ids = array_map('intval', $_POST['ids']);
@@ -1262,5 +1265,4 @@ class WebClyde_Content_Vault_Admin {
         wp_send_json_success();
     }
 }
-
-// Initialize plugin
+?>

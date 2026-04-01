@@ -25,7 +25,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
             if ( ! $this->settings->has_api_keys() ) {
                 return array(
                     'success' => false,
-                    'error'   => __('API keys not configured', 'webclyde-content-vault'),
+                    'error'   => __('API keys not configured', 'content-vault'),
                 );
             }
 
@@ -51,7 +51,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
             if ( $code !== 200 || empty( $body ) ) {
                 return array(
                     'success' => false,
-                    'error'   => isset( $body['message'] ) ? $body['message'] : __('Unknown API error', 'webclyde-content-vault'),
+                    'error'   => isset( $body['message'] ) ? $body['message'] : __('Unknown API error', 'content-vault'),
                 );
             }
 
@@ -65,7 +65,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
 
             return array(
                 'success' => false,
-                'error'   => isset( $body['message'] ) ? $body['message'] : __('No job ID returned', 'webclyde-content-vault'),
+                'error'   => isset( $body['message'] ) ? $body['message'] : __('No job ID returned', 'content-vault'),
             );
         }
 
@@ -73,7 +73,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
             if ( ! $this->settings->has_api_keys() ) {
                 return array(
                     'success' => false,
-                    'error'   => __('API keys not configured', 'webclyde-content-vault'),
+                    'error'   => __('API keys not configured', 'content-vault'),
                 );
             }
 
@@ -94,7 +94,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
             if ( empty( $body ) ) {
                 return array(
                     'success' => false,
-                    'error'   => __('Empty response from API', 'webclyde-content-vault'),
+                    'error'   => __('Empty response from API', 'content-vault'),
                 );
             }
 
@@ -122,7 +122,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
             if ( ! $this->settings->has_api_keys() ) {
                 return array(
                     'success' => false,
-                    'error'   => __('API keys not configured', 'webclyde-content-vault'),
+                    'error'   => __('API keys not configured', 'content-vault'),
                 );
             }
 
@@ -144,10 +144,13 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
                 return array( 'success' => true );
             }
 
-            return array(
-                'success' => false,
-                'error'   => sprintf( __('API returned status code: %d', 'webclyde-content-vault'), $code ),
-            );
+            /* translators: %d is the HTTP status code number returned by the API */
+			$error = sprintf( __( 'API returned status code: %d', 'content-vault' ), $code );
+
+			return array(
+				'success' => false,
+				'error'   => $error,
+			);
         }
 
         public function check_link_health( $url ) {

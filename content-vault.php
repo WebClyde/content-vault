@@ -7,7 +7,7 @@
  * Author: WebClyde
  * Author URI: https://webclyde.com
  * License: GPL v2 or later
- * Text Domain: webclyde-content-vault
+ * Text Domain: content-vault
  */
 
 if (!defined('ABSPATH')) {
@@ -32,7 +32,6 @@ if (!defined('WEBCLYDE_CONTENT_VAULT_TABLE_NAME')) {
 }
 
 // include core classes
-require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-main.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-settings.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-logger.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-api.php';
@@ -40,9 +39,13 @@ require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-scheduler.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-admin.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-404-handler.php';
 
+require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-main.php';
+
 // bootstrap
 function webclyde_content_vault_init() {
     return WebClyde_Content_Vault::get_instance();
 }
 
-webclyde_content_vault_init();
+add_action('plugins_loaded', function () {
+    webclyde_content_vault_init();
+});

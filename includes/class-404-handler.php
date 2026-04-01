@@ -39,7 +39,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_404_Handler' ) ) {
 
             if ( $action === 'direct' ) {
                 if ( $archive_url ) {
-                    wp_redirect( $archive_url );
+                    wp_safe_redirect( $archive_url );
                     exit;
                 }
                 return;
@@ -58,7 +58,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_404_Handler' ) ) {
             <head>
                 <meta charset="<?php bloginfo( 'charset' ); ?>">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title><?php esc_html_e( 'Page Not Found', 'webclyde-content-vault' ); ?> - <?php bloginfo( 'name' ); ?></title>
+                <title><?php esc_html_e( 'Page Not Found', 'content-vault' ); ?> - <?php bloginfo( 'name' ); ?></title>
                 <style>
                     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; background: #f3f4f6; color: #374151; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
                     .webclyde-404-container { background: white; padding: 50px 40px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); text-align: center; max-width: 550px; width: 90%; }
@@ -77,20 +77,20 @@ if ( ! class_exists( 'WebClyde_Content_Vault_404_Handler' ) ) {
             <body>
                 <div class="webclyde-404-container">
                     <h1>404</h1>
-                    <h2><?php esc_html_e( 'Page Not Found', 'webclyde-content-vault' ); ?></h2>
-                    <p><?php esc_html_e( 'The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.', 'webclyde-content-vault' ); ?></p>
+                    <h2><?php esc_html_e( 'Page Not Found', 'content-vault' ); ?></h2>
+                    <p><?php esc_html_e( 'The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.', 'content-vault' ); ?></p>
                     
                     <?php if ( $archive_url ) : ?>
                         <div class="webclyde-archive-box">
-                            <h3><?php esc_html_e( 'Good News!', 'webclyde-content-vault' ); ?></h3>
-                            <p><?php esc_html_e( 'We found an archived version of this page from the Wayback Machine. You can view it below.', 'webclyde-content-vault' ); ?></p>
+                            <h3><?php esc_html_e( 'Good News!', 'content-vault' ); ?></h3>
+                            <p><?php esc_html_e( 'We found an archived version of this page from the Wayback Machine. You can view it below.', 'content-vault' ); ?></p>
                             <a href="<?php echo esc_url( $archive_url ); ?>" class="webclyde-btn" target="_blank">
-                                📸 <?php esc_html_e( 'View Archived Page', 'webclyde-content-vault' ); ?>
+                                📸 <?php esc_html_e( 'View Archived Page', 'content-vault' ); ?>
                             </a>
                         </div>
                     <?php endif; ?>
                     
-                    <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="webclyde-back-link">&larr; <?php esc_html_e( 'Back to Homepage', 'webclyde-content-vault' ); ?></a>
+                    <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="webclyde-back-link">&larr; <?php esc_html_e( 'Back to Homepage', 'content-vault' ); ?></a>
                 </div>
             </body>
             </html>

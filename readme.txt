@@ -1,14 +1,14 @@
-=== Content Vault – Protect Your Content. Preserve Your Website History ===
+=== Content Vault ===
 
 Contributors: webclyde, nurulanam, zakir021063008
 Tags: content archive, content protection, content history, broken link protection, content monitoring
 Donate link: https://webclyde.com/donate
 Requires at least: 5.0
-Tested up to: 6.9.4
+Tested up to: 6.9
 Requires PHP: 7.0
 Stable tag: 1.0.1
-License: GPLv3
-License URI: https://opensource.org/licenses/GPL-3.0
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Protect and archive your WordPress content automatically. Track history, detect broken links and keep timeline of your pages.
 
