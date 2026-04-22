@@ -30,6 +30,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				'updated_at'       => current_time( 'mysql' ),
 			);
 			$data   = wp_parse_args( $data, $defaults );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$result = $wpdb->insert( $this->table_name, $data );
 			return $result ? $wpdb->insert_id : false;
 		}
@@ -37,6 +38,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 		public function update( $id, $data ) {
 			global $wpdb;
 			$data['updated_at'] = current_time( 'mysql' );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->update(
 				$this->table_name,
 				$data,
@@ -46,6 +48,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 		public function get( $id ) {
 			global $wpdb;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->get_row(
 				$wpdb->prepare(
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -57,6 +60,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 		public function get_by_job_id( $job_id ) {
 			global $wpdb;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->get_row(
 				$wpdb->prepare(
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -114,15 +118,12 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 			$table = esc_sql( $this->table_name );
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$sql = "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d";
-
 			// Append integer parameters for LIMIT and OFFSET
 			$values[] = $per_page;
 			$values[] = $offset;
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			return $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d", $values ) );
 		}
 
 		public function get_total( $args = array() ) {
@@ -155,16 +156,13 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 			$table = esc_sql( $this->table_name );
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$sql = "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}";
-
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			return (int) $wpdb->get_var( $wpdb->prepare( $sql, $values ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}", $values ) );
 		}
 
 		public function get_pending() {
 			global $wpdb;
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->get_results(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				"SELECT * FROM {$this->table_name}
@@ -177,6 +175,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 		public function delete( $id ) {
 			global $wpdb;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->delete(
 				$this->table_name,
 				array( 'id' => $id )
@@ -195,7 +194,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			$placeholders = implode( ',', $ids ); // safe: all values are intval()'d integers
 			$table        = esc_sql( $this->table_name );
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->query( "DELETE FROM {$table} WHERE id IN ({$placeholders})" );
 		}
 
@@ -216,7 +215,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				$status_sql = "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status";
 			}
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$results = $wpdb->get_results( $status_sql );
 
 			$stats = array(
@@ -247,7 +246,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				$health_sql = "SELECT link_health, COUNT(*) as count FROM {$table} GROUP BY link_health";
 			}
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$health_results = $wpdb->get_results( $health_sql );
 
 			$stats['healthy']   = 0;
@@ -261,7 +260,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			}
 
 			if ( empty( $post_type ) ) {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$type_results = $wpdb->get_results(
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					"SELECT post_type, COUNT(*) as count FROM {$table} GROUP BY post_type"

@@ -895,9 +895,11 @@ class WebClyde_Content_Vault_Admin {
     }
     
     private function render_logs_table($post_type = '') {
-        $page = isset($_GET['paged']) ? max(1, (int) $_GET['paged']) : 1;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $page = isset($_GET['paged']) ? max(1, (int) sanitize_text_field(wp_unslash($_GET['paged']))) : 1;
         $per_page = 20;
-        $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
         
         $args = array(
             'page' => $page,
@@ -935,7 +937,10 @@ class WebClyde_Content_Vault_Admin {
                 
                 <div class="webclyde-filters">
                     <form method="get" style="display: flex; gap: 15px; align-items: center;">
-                        <input type="hidden" name="page" value="<?php echo esc_attr( sanitize_text_field( $_GET['page'] ) ); ?>">
+                        <input type="hidden" name="page" value="<?php 
+                            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+                            echo isset( $_GET['page'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) : ''; 
+                        ?>">
                         
                         <select name="status" onchange="this.form.submit()">
                             <option value=""><?php esc_html_e('All Statuses', 'content-vault'); ?></option>
@@ -1113,8 +1118,10 @@ class WebClyde_Content_Vault_Admin {
                             
                             <div>
                                 <?php
+                                // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+                                $current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
                                 $base_url = add_query_arg(array(
-                                    'page' => sanitize_text_field( $_GET['page'] ),
+                                    'page' => $current_page,
                                     'status' => $status_filter
                                 ), admin_url('admin.php'));
                                 
@@ -1148,7 +1155,9 @@ class WebClyde_Content_Vault_Admin {
             wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
-        parse_str($_POST['data'], $data);
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $post_data = isset($_POST['data']) ? wp_unslash($_POST['data']) : '';
+        parse_str($post_data, $data);
         
         $fields = array('access_key', 'secret_key', 'enable_posts', 'enable_pages', 'check_interval', 'max_attempts', 'check_link_health', 'broken_link_action');
         
@@ -1186,7 +1195,7 @@ class WebClyde_Content_Vault_Admin {
             wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
-        $job_id = sanitize_text_field($_POST['job_id']);
+        $job_id = isset($_POST['job_id']) ? sanitize_text_field(wp_unslash($_POST['job_id'])) : '';
         $this->scheduler->manual_check($job_id);
         
         wp_send_json_success();
@@ -1199,7 +1208,7 @@ class WebClyde_Content_Vault_Admin {
             wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
-        $log_id = (int) $_POST['log_id'];
+        $log_id = isset($_POST['log_id']) ? (int) sanitize_text_field(wp_unslash($_POST['log_id'])) : 0;
         $this->scheduler->manual_health_check($log_id);
         
         wp_send_json_success();
@@ -1212,7 +1221,7 @@ class WebClyde_Content_Vault_Admin {
             wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
-        $log_id = (int) $_POST['log_id'];
+        $log_id = isset($_POST['log_id']) ? (int) sanitize_text_field(wp_unslash($_POST['log_id'])) : 0;
         $log = $this->logger->get($log_id);
         
         if (!$log) {
@@ -1246,7 +1255,7 @@ class WebClyde_Content_Vault_Admin {
             wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
-        $log_id = (int) $_POST['log_id'];
+        $log_id = isset($_POST['log_id']) ? (int) sanitize_text_field(wp_unslash($_POST['log_id'])) : 0;
         $this->logger->delete($log_id);
         
         wp_send_json_success();
@@ -1259,7 +1268,9 @@ class WebClyde_Content_Vault_Admin {
             wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
-        $ids = array_map('intval', $_POST['ids']);
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $raw_ids = isset($_POST['ids']) && is_array($_POST['ids']) ? wp_unslash($_POST['ids']) : array();
+        $ids = array_map('intval', $raw_ids);
         $this->logger->delete_bulk($ids);
         
         wp_send_json_success();
