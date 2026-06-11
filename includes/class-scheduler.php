@@ -85,7 +85,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             }
 
             // 🔴 TERMINAL STATE GUARD (must be first)
-            if ( in_array( $log->status, array( 'success', 'error', 'completed' ), true ) ) {
+            if ( in_array( $log->status, array( 'success', 'completed' ), true ) ) {
                 return;
             }
 
@@ -101,7 +101,20 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
 
             $max_attempts = (int) $this->settings->get( 'max_attempts', 15 );
 
+            // If max attempts reached, let's proactively query the Availability API before giving up!
             if ( $log->attempts >= $max_attempts ) {
+                $fallback_url = $this->api->get_archive_url( $log->url );
+                if ( $fallback_url ) {
+                    $this->logger->update( $log->id, array(
+                        'status'       => 'completed',
+                        'snapshot_url' => $fallback_url,
+                        'last_checked' => current_time( 'mysql' ),
+                        'finished_at'  => current_time( 'mysql' ),
+                        'error_message'=> null,
+                    ) );
+                    return;
+                }
+
                 $this->logger->update( $log->id, array(
                     'status'        => 'error',
                     'error_message' => __( 'Max attempts reached', 'content-vault' ),
@@ -115,7 +128,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
 
             $update_data = array(
                 'attempts'     => $log->attempts + 1,
-                'last_checked'  => current_time( 'mysql' ),
+                'last_checked' => current_time( 'mysql' ),
             );
 
             if ( $result['success'] ) {
@@ -144,19 +157,54 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     return;
                 }
 
-                // ---------------- ERROR ----------------
+                // ---------------- ERROR (E.g. already archived or duplicate submission block) ----------------
                 if ( $result['status'] === 'error' ) {
+                    
+                    // FALLBACK: Query the Availability API. If a snapshot is found, save it and complete the job!
+                    $fallback_url = $this->api->get_archive_url( $log->url );
+                    if ( $fallback_url ) {
+                        $update_data['status']       = 'completed';
+                        $update_data['snapshot_url'] = $fallback_url;
+                        $update_data['finished_at']   = current_time( 'mysql' );
+                        $update_data['error_message'] = null;
+
+                        $this->logger->update( $log->id, $update_data );
+
+                        if ( $this->settings->get( 'check_link_health' ) ) {
+                            $this->schedule_health_check( $log->id );
+                        }
+                        return;
+                    }
+
                     $update_data['error_message'] = isset( $result['message'] )
                         ? $result['message']
                         : __( 'Archive failed', 'content-vault' );
                     $update_data['finished_at'] = current_time( 'mysql' );
-                    $update_data['status']      = 'error';   // ← keep 'error', not 'completed'
+                    $update_data['status']      = 'error';
                     $this->logger->update( $log->id, $update_data );
                     return;
                 }
 
                 // ---------------- STILL PROCESSING ----------------
                 if ( in_array( $result['status'], array( 'pending', 'processing' ), true ) ) {
+                    
+                    // Proactive Check: If we've been processing for 3+ attempts, try the Availability API
+                    if ( $log->attempts >= 3 ) {
+                        $fallback_url = $this->api->get_archive_url( $log->url );
+                        if ( $fallback_url ) {
+                            $update_data['status']       = 'completed';
+                            $update_data['snapshot_url'] = $fallback_url;
+                            $update_data['finished_at']   = current_time( 'mysql' );
+                            $update_data['error_message'] = null;
+
+                            $this->logger->update( $log->id, $update_data );
+
+                            if ( $this->settings->get( 'check_link_health' ) ) {
+                                $this->schedule_health_check( $log->id );
+                            }
+                            return;
+                        }
+                    }
 
                     $this->logger->update( $log->id, $update_data );
                     $this->schedule_status_check( $job_id );
@@ -164,7 +212,23 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                 }
             }
 
-            // ---------------- API FAILURE ----------------
+            // ---------------- API FAILURE / HTTP TIMEOUT ----------------
+            // Try Availability check as a fallback first before incrementing attempts with errors
+            $fallback_url = $this->api->get_archive_url( $log->url );
+            if ( $fallback_url ) {
+                $update_data['status']       = 'completed';
+                $update_data['snapshot_url'] = $fallback_url;
+                $update_data['finished_at']   = current_time( 'mysql' );
+                $update_data['error_message'] = null;
+
+                $this->logger->update( $log->id, $update_data );
+
+                if ( $this->settings->get( 'check_link_health' ) ) {
+                    $this->schedule_health_check( $log->id );
+                }
+                return;
+            }
+
             $update_data['error_message'] = $result['error'] ?? 'Unknown error';
 
             $this->logger->update( $log->id, $update_data );
@@ -180,7 +244,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
 
                 if (
                     empty( $log->job_id ) ||
-                    in_array( $log->status, array( 'success', 'error', 'completed' ), true )
+                    in_array( $log->status, array( 'success', 'completed' ), true )
                 ) {
                     continue;
                 }

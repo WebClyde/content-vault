@@ -13,12 +13,12 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Settings' ) ) {
         private $option_keys = array(
             'access_key',
             'secret_key',
-            'enable_posts',
-            'enable_pages',
             'check_interval',
             'max_attempts',
             'check_link_health',
             'broken_link_action',
+            'cooldown_interval',
+            'enabled_post_types',
         );
 
         public function __construct() {
@@ -45,8 +45,6 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Settings' ) ) {
 
             switch ( $key ) {
 
-                case 'enable_posts':
-                case 'enable_pages':
                 case 'check_link_health':
                     return 0;
 
@@ -56,8 +54,14 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Settings' ) ) {
                 case 'max_attempts':
                     return 15;
 
+                case 'cooldown_interval':
+                    return 5;
+
                 case 'broken_link_action':
                     return 'none';
+
+                case 'enabled_post_types':
+                    return array( 'post', 'page' );
 
                 case 'access_key':
                 case 'secret_key':
@@ -107,8 +111,6 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Settings' ) ) {
                 case 'secret_key':
                     return sanitize_text_field( $value );
 
-                case 'enable_posts':
-                case 'enable_pages':
                 case 'check_link_health':
                     return (int) (bool) $value;
 
@@ -118,12 +120,21 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Settings' ) ) {
                 case 'max_attempts':
                     return max( 1, min( 50, (int) $value ) );
 
+                case 'cooldown_interval':
+                    return max( 0, min( 1440, (int) $value ) );
+
                 case 'broken_link_action':
                     return in_array(
                         $value,
-                        array( 'none', 'direct', '404_page' ),
+                        array( 'none', 'direct', '404_page', 'embed' ),
                         true
                     ) ? $value : 'none';
+
+                case 'enabled_post_types':
+                    if ( ! is_array( $value ) ) {
+                        return array();
+                    }
+                    return array_map( 'sanitize_key', $value );
 
                 default:
                     return sanitize_text_field( $value );

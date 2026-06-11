@@ -31,6 +31,23 @@ class WebClyde_Content_Vault_Admin {
         add_action('wp_ajax_webclyde_retry_archive', array($this, 'ajax_retry_archive'));
         add_action('wp_ajax_webclyde_delete_log', array($this, 'ajax_delete_log'));
         add_action('wp_ajax_webclyde_bulk_delete', array($this, 'ajax_bulk_delete'));
+        
+        // Post/Page Screen Integration & Archive Now Action
+        add_action('add_meta_boxes', array($this, 'add_archive_metabox'));
+        add_action('wp_ajax_webclyde_archive_now', array($this, 'ajax_archive_now'));
+        
+        // Custom Columns for Posts and Pages list table
+        add_filter('manage_post_posts_columns', array($this, 'add_custom_columns'));
+        add_filter('manage_page_pages_columns', array($this, 'add_custom_columns'));
+        add_action('manage_post_posts_custom_column', array($this, 'render_custom_columns'), 10, 2);
+        add_action('manage_page_pages_custom_column', array($this, 'render_custom_columns'), 10, 2);
+        
+        // Bulk Actions
+        add_filter('bulk_actions-edit-post', array($this, 'add_bulk_archive_action'));
+        add_filter('bulk_actions-edit-page', array($this, 'add_bulk_archive_action'));
+        add_filter('handle_bulk_actions-edit-post', array($this, 'handle_bulk_archive_action'), 10, 3);
+        add_filter('handle_bulk_actions-edit-page', array($this, 'handle_bulk_archive_action'), 10, 3);
+        add_action('admin_notices', array($this, 'show_bulk_archive_admin_notice'));
     }
     
     public function add_menu_pages() {
@@ -64,34 +81,16 @@ class WebClyde_Content_Vault_Admin {
         
         add_submenu_page(
             'content-vault',
-            __('All Logs', 'content-vault'),
-            __('All Logs', 'content-vault'),
+            __('Logs', 'content-vault'),
+            __('Logs', 'content-vault'),
             'manage_options',
             'content-vault-logs',
             array($this, 'render_logs_page')
         );
-        
-        add_submenu_page(
-            'content-vault',
-            __('Post Logs', 'content-vault'),
-            __('Post Logs', 'content-vault'),
-            'manage_options',
-            'content-vault-posts',
-            array($this, 'render_post_logs_page')
-        );
-        
-        add_submenu_page(
-            'content-vault',
-            __('Page Logs', 'content-vault'),
-            __('Page Logs', 'content-vault'),
-            'manage_options',
-            'content-vault-pages',
-            array($this, 'render_page_logs_page')
-        );
     }
     
     public function enqueue_assets($hook) {
-        if (strpos($hook, 'content-vault') === false) {
+        if (strpos($hook, 'content-vault') === false && $hook !== 'post.php' && $hook !== 'post-new.php' && $hook !== 'edit.php') {
             return;
         }
         
@@ -121,549 +120,20 @@ class WebClyde_Content_Vault_Admin {
                 'checking' => __('Checking...', 'content-vault')
             )
         ));
-        
-        $this->inline_styles();
-        $this->inline_scripts();
-    }
-    
-    private function inline_styles() {
-        $css = "
-        .webclyde-wrap {
-            width: 100%;
-            padding-right: 20px;
-            box-sizing: border-box;
-        }
-        .webclyde-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            color: white;
-        }
-        .webclyde-header h1 {
-            margin: 0 0 10px;
-            font-size: 28px;
-            font-weight: 600;
-            color: #fff;
-        }
-        .webclyde-header p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        .webclyde-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .webclyde-card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            border-left: 4px solid #667eea;
-        }
-        .webclyde-card.success { border-left-color: #10b981; }
-        .webclyde-card.warning { border-left-color: #f59e0b; }
-        .webclyde-card.error { border-left-color: #ef4444; }
-        .webclyde-card.info { border-left-color: #3b82f6; }
-        .webclyde-card h3 {
-            margin: 0 0 5px;
-            font-size: 14px;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .webclyde-card .number {
-            font-size: 36px;
-            font-weight: 700;
-            color: #1f2937;
-        }
-        .webclyde-box {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 30px;
-        }
-        .webclyde-box h2 {
-            margin: 0 0 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f3f4f6;
-            font-size: 18px;
-            color: #1f2937;
-        }
-        .webclyde-form-row {
-            margin-bottom: 25px;
-        }
-        .webclyde-form-row label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #374151;
-        }
-        .webclyde-form-row input[type='text'],
-        .webclyde-form-row input[type='password'],
-        .webclyde-form-row input[type='number'] {
-            width: 100%;
-            max-width: 400px;
-            padding: 12px 15px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.2s;
-        }
-        .webclyde-form-row input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .webclyde-form-row .description {
-            margin-top: 8px;
-            color: #6b7280;
-            font-size: 13px;
-        }
-        .webclyde-checkbox-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 15px;
-            background: #f9fafb;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        .webclyde-checkbox-row input[type='checkbox'] {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-        .webclyde-checkbox-row label {
-            margin: 0;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        .webclyde-btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .webclyde-btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        .webclyde-btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-        .webclyde-btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
-        }
-        .webclyde-btn-secondary:hover {
-            background: #e5e7eb;
-        }
-        .webclyde-btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-        .webclyde-btn-danger:hover {
-            background: #dc2626;
-        }
-        .webclyde-btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-        .webclyde-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .webclyde-table th,
-        .webclyde-table td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        .webclyde-table th {
-            background: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .webclyde-table tr:hover {
-            background: #f9fafb;
-        }
-        .webclyde-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .webclyde-status.pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .webclyde-status.processing {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        .webclyde-status.success {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .webclyde-status.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .webclyde-health {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .webclyde-health.healthy {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .webclyde-health.unhealthy {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .webclyde-health.unknown {
-            background: #f3f4f6;
-            color: #6b7280;
-        }
-        .webclyde-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .webclyde-badge.post {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        .webclyde-badge.page {
-            background: #fae8ff;
-            color: #86198f;
-        }
-        .webclyde-url {
-            max-width: 250px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font-size: 13px;
-        }
-        .webclyde-url a {
-            color: #667eea;
-            text-decoration: none;
-        }
-        .webclyde-url a:hover {
-            text-decoration: underline;
-        }
-        .webclyde-actions {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-        .webclyde-pagination {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #f3f4f6;
-        }
-        .webclyde-filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .webclyde-filters select {
-            padding: 10px 15px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 14px;
-            background: white;
-        }
-        .webclyde-notice {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .webclyde-notice.success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #a7f3d0;
-        }
-        .webclyde-notice.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-        .webclyde-system-status {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-        .webclyde-status-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 15px;
-            background: #f9fafb;
-            border-radius: 8px;
-        }
-        .webclyde-status-item .icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-        .webclyde-status-item .icon.active {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .webclyde-status-item .icon.inactive {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .webclyde-time {
-            font-size: 12px;
-            color: #6b7280;
-        }
-        .webclyde-error-msg {
-            font-size: 11px;
-            color: #991b1b;
-            margin-top: 4px;
-        }
-        .webclyde-quick-links {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-        .webclyde-quick-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 10px;
-            text-decoration: none;
-            color: #374151;
-            transition: all 0.2s;
-        }
-        .webclyde-quick-link:hover {
-            background: #f3f4f6;
-            transform: translateY(-2px);
-        }
-        .webclyde-quick-link .dashicons {
-            font-size: 24px;
-            width: 24px;
-            height: 24px;
-            color: #667eea;
-        }
-        ";
-        wp_add_inline_style('content-vault-admin', $css);
-    }
-    
-    private function inline_scripts() {
-        $js = "
-        jQuery(document).ready(function($) {
-            // Save settings
-            $('#webclyde-settings-form').on('submit', function(e) {
-                e.preventDefault();
-                var btn = $(this).find('button[type=\"submit\"]');
-                var originalText = btn.text();
-                btn.text(webclydeContentVault.strings.saving).prop('disabled', true);
-                
-                $.post(webclydeContentVault.ajaxurl, {
-                    action: 'webclyde_save_settings',
-                    nonce: webclydeContentVault.nonce,
-                    data: $(this).serialize()
-                }, function(response) {
-                    btn.text(originalText).prop('disabled', false);
-                    if (response.success) {
-                        showNotice('Settings saved successfully!', 'success');
-                    } else {
-                        showNotice(response.data || 'Error saving settings', 'error');
-                    }
-                });
-            });
-            
-            // Test connection
-            $('#webclyde-test-connection').on('click', function() {
-                var btn = $(this);
-                var originalText = btn.text();
-                btn.text(webclydeContentVault.strings.testing).prop('disabled', true);
-                
-                $.post(webclydeContentVault.ajaxurl, {
-                    action: 'webclyde_test_connection',
-                    nonce: webclydeContentVault.nonce
-                }, function(response) {
-                    btn.text(originalText).prop('disabled', false);
-                    if (response.success) {
-                        showNotice('API connection successful!', 'success');
-                    } else {
-                        showNotice(response.data || 'Connection failed', 'error');
-                    }
-                });
-            });
-            
-            // Check status
-            $(document).on('click', '.webclyde-check-status', function() {
-                var btn = $(this);
-                var jobId = btn.data('job-id');
-                btn.text(webclydeContentVault.strings.checking).prop('disabled', true);
-                
-                $.post(webclydeContentVault.ajaxurl, {
-                    action: 'webclyde_check_status',
-                    nonce: webclydeContentVault.nonce,
-                    job_id: jobId
-                }, function(response) {
-                    if (response.success) {
-                        location.reload();
-                    } else {
-                        btn.text('Check').prop('disabled', false);
-                        showNotice(response.data || 'Error checking status', 'error');
-                    }
-                });
-            });
-            
-            // Check health
-            $(document).on('click', '.webclyde-check-health', function() {
-                var btn = $(this);
-                var logId = btn.data('log-id');
-                btn.text(webclydeContentVault.strings.checking).prop('disabled', true);
-                
-                $.post(webclydeContentVault.ajaxurl, {
-                    action: 'webclyde_check_health',
-                    nonce: webclydeContentVault.nonce,
-                    log_id: logId
-                }, function(response) {
-                    if (response.success) {
-                        location.reload();
-                    } else {
-                        btn.text('Health').prop('disabled', false);
-                        showNotice(response.data || 'Error checking health', 'error');
-                    }
-                });
-            });
-            
-            // Retry archive
-            $(document).on('click', '.webclyde-retry', function() {
-                var btn = $(this);
-                var logId = btn.data('log-id');
-                btn.prop('disabled', true);
-                
-                $.post(webclydeContentVault.ajaxurl, {
-                    action: 'webclyde_retry_archive',
-                    nonce: webclydeContentVault.nonce,
-                    log_id: logId
-                }, function(response) {
-                    if (response.success) {
-                        location.reload();
-                    } else {
-                        btn.prop('disabled', false);
-                        showNotice(response.data || 'Error retrying archive', 'error');
-                    }
-                });
-            });
-            
-            // Delete log
-            $(document).on('click', '.webclyde-delete', function() {
-                if (!confirm(webclydeContentVault.strings.confirm_delete)) return;
-                
-                var btn = $(this);
-                var logId = btn.data('log-id');
-                
-                $.post(webclydeContentVault.ajaxurl, {
-                    action: 'webclyde_delete_log',
-                    nonce: webclydeContentVault.nonce,
-                    log_id: logId
-                }, function(response) {
-                    if (response.success) {
-                        btn.closest('tr').fadeOut(function() { $(this).remove(); });
-                    } else {
-                        showNotice(response.data || 'Error deleting log', 'error');
-                    }
-                });
-            });
-            
-            // Bulk delete
-            $('#webclyde-bulk-delete').on('click', function() {
-                var ids = [];
-                $('.webclyde-log-checkbox:checked').each(function() {
-                    ids.push($(this).val());
-                });
-                
-                if (ids.length === 0) {
-                    showNotice('Please select logs to delete', 'error');
-                    return;
-                }
-                
-                if (!confirm(webclydeContentVault.strings.confirm_bulk_delete)) return;
-                
-                $.post(webclydeContentVault.ajaxurl, {
-                    action: 'webclyde_bulk_delete',
-                    nonce: webclydeContentVault.nonce,
-                    ids: ids
-                }, function(response) {
-                    if (response.success) {
-                        location.reload();
-                    } else {
-                        showNotice(response.data || 'Error deleting logs', 'error');
-                    }
-                });
-            });
-            
-            // Select all
-            $('#webclyde-select-all').on('change', function() {
-                $('.webclyde-log-checkbox').prop('checked', $(this).is(':checked'));
-            });
-            
-            function showNotice(message, type) {
-                var notice = $('<div class=\"webclyde-notice ' + type + '\">' + message + '</div>');
-                $('.webclyde-wrap').after(notice);
-                setTimeout(function() { notice.fadeOut(function() { $(this).remove(); }); }, 5000);
-            }
-        });
-        ";
-        wp_add_inline_script('content-vault-admin', $js);
     }
     
     public function render_dashboard_page() {
         $stats = $this->logger->get_stats();
+        $enabled_types = $this->settings->get('enabled_post_types', array('post', 'page'));
+        if (!is_array($enabled_types)) {
+            $enabled_types = array();
+        }
         ?>
         <div class="wrap webclyde-wrap">
             <div class="webclyde-header">
                 <h1><?php esc_html_e('Content Vault', 'content-vault'); ?></h1>
                 <p><?php esc_html_e('Archive your WordPress content to the Content Vault automatically', 'content-vault'); ?></p>
             </div>
-            
             
             <div class="webclyde-box">
                 <h2><?php esc_html_e('System Status', 'content-vault'); ?></h2>
@@ -695,28 +165,19 @@ class WebClyde_Content_Vault_Admin {
                         </div>
                     </div>
                     <div class="webclyde-status-item">
-                        <div class="icon <?php echo $this->settings->get('enable_posts') ? 'active' : 'inactive'; ?>">
-                            <?php echo $this->settings->get('enable_posts') ? '✓' : '✗'; ?>
+                        <div class="icon <?php echo !empty($enabled_types) ? 'active' : 'inactive'; ?>">
+                            <?php echo !empty($enabled_types) ? '✓' : '✗'; ?>
                         </div>
                         <div>
-                            <strong><?php esc_html_e('Post Archiving', 'content-vault'); ?></strong>
+                            <strong><?php esc_html_e('Automatic Archiving', 'content-vault'); ?></strong>
                             <div class="webclyde-time">
-                                <?php echo $this->settings->get('enable_posts') 
-                                    ? esc_html__('Enabled', 'content-vault') 
-                                    : esc_html__('Disabled', 'content-vault'); ?>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="webclyde-status-item">
-                        <div class="icon <?php echo $this->settings->get('enable_pages') ? 'active' : 'inactive'; ?>">
-                            <?php echo $this->settings->get('enable_pages') ? '✓' : '✗'; ?>
-                        </div>
-                        <div>
-                            <strong><?php esc_html_e('Page Archiving', 'content-vault'); ?></strong>
-                            <div class="webclyde-time">
-                                <?php echo $this->settings->get('enable_pages') 
-                                    ? esc_html__('Enabled', 'content-vault') 
-                                    : esc_html__('Disabled', 'content-vault'); ?>
+                                <?php echo !empty($enabled_types) 
+                                    ? sprintf( 
+                                        /* translators: %d is the count of enabled post types for automatic archiving */
+                                        esc_html__( '%d Post Types Enabled', 'content-vault' ), 
+                                        count( $enabled_types ) 
+                                    )
+                                    : esc_html__('All Disabled', 'content-vault'); ?>
                             </div>
                         </div>
                     </div>
@@ -733,22 +194,8 @@ class WebClyde_Content_Vault_Admin {
                     <a href="<?php echo esc_url(admin_url('admin.php?page=content-vault-logs')); ?>" class="webclyde-quick-link">
                         <span class="dashicons dashicons-list-view"></span>
                         <div>
-                            <strong><?php esc_html_e('All Logs', 'content-vault'); ?></strong>
-                            <div class="webclyde-time"><?php esc_html_e('View all archive logs', 'content-vault'); ?></div>
-                        </div>
-                    </a>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=content-vault-posts')); ?>" class="webclyde-quick-link">
-                        <span class="dashicons dashicons-admin-post"></span>
-                        <div>
-                            <strong><?php esc_html_e('Post Logs', 'content-vault'); ?></strong>
-                            <div class="webclyde-time"><?php esc_html_e('View post archive logs', 'content-vault'); ?></div>
-                        </div>
-                    </a>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=content-vault-pages')); ?>" class="webclyde-quick-link">
-                        <span class="dashicons dashicons-admin-page"></span>
-                        <div>
-                            <strong><?php esc_html_e('Page Logs', 'content-vault'); ?></strong>
-                            <div class="webclyde-time"><?php esc_html_e('View page archive logs', 'content-vault'); ?></div>
+                            <strong><?php esc_html_e('Logs List', 'content-vault'); ?></strong>
+                            <div class="webclyde-time"><?php esc_html_e('View all archive logs with advanced filters', 'content-vault'); ?></div>
                         </div>
                     </a>
                 </div>
@@ -805,29 +252,40 @@ class WebClyde_Content_Vault_Admin {
                 </div>
                 
                 <div class="webclyde-box">
-                    <h2><?php esc_html_e('Post Archiving', 'content-vault'); ?></h2>
-                    
-                    <div class="webclyde-checkbox-row">
-                        <input type="checkbox" id="enable_posts" name="enable_posts" value="1" 
-                               <?php checked($this->settings->get('enable_posts'), 1); ?>>
-                        <label for="enable_posts"><?php esc_html_e('Enable automatic archiving for Posts', 'content-vault'); ?></label>
-                    </div>
-                    <p class="description" style="margin-left: 30px; margin-top: -5px;">
-                        <?php esc_html_e('When enabled, posts will be automatically sent to Content Vault when published.', 'content-vault'); ?>
+                    <h2><?php esc_html_e('Automatic Archiving', 'content-vault'); ?></h2>
+                    <p class="description" style="margin-bottom: 20px;">
+                        <?php esc_html_e('Select the post types that should be automatically sent to the Content Vault when published or updated.', 'content-vault'); ?>
                     </p>
-                </div>
-                
-                <div class="webclyde-box">
-                    <h2><?php esc_html_e('Page Archiving', 'content-vault'); ?></h2>
                     
-                    <div class="webclyde-checkbox-row">
-                        <input type="checkbox" id="enable_pages" name="enable_pages" value="1" 
-                               <?php checked($this->settings->get('enable_pages'), 1); ?>>
-                        <label for="enable_pages"><?php esc_html_e('Enable automatic archiving for Pages', 'content-vault'); ?></label>
+                    <div class="webclyde-checkbox-row" style="background: #f3f4f6; border-bottom: 1px solid #e5e7eb; font-weight: bold;">
+                        <input type="checkbox" id="webclyde-select-all-post-types">
+                        <label for="webclyde-select-all-post-types"><?php esc_html_e('Select All Post Types', 'content-vault'); ?></label>
                     </div>
-                    <p class="description" style="margin-left: 30px; margin-top: -5px;">
-                        <?php esc_html_e('When enabled, pages will be automatically sent to Content Vault when published.', 'content-vault'); ?>
-                    </p>
+                    
+                    <div style="max-height: 250px; overflow-y: auto; padding-left: 5px; margin-top: 15px;">
+                        <?php
+                        $post_types = get_post_types( array( 'public' => true ), 'objects' );
+                        $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
+                        if ( ! is_array( $enabled_types ) ) {
+                            $enabled_types = array();
+                        }
+                        
+                        foreach ( $post_types as $pt ) {
+                            if ( in_array( $pt->name, array( 'attachment', 'revision', 'nav_menu_item' ) ) ) {
+                                continue;
+                            }
+                            $checked = in_array( $pt->name, $enabled_types, true ) ? 'checked' : '';
+                            ?>
+                            <div class="webclyde-checkbox-row" style="margin-bottom: 8px;">
+                                <input type="checkbox" class="webclyde-post-type-checkbox" name="enabled_post_types[]" value="<?php echo esc_attr( $pt->name ); ?>" <?php checked( in_array( $pt->name, $enabled_types, true ) ); ?> id="pt-<?php echo esc_attr( $pt->name ); ?>">
+                                <label for="pt-<?php echo esc_attr( $pt->name ); ?>">
+                                    <strong><?php echo esc_html( $pt->label ); ?></strong> <span style="font-size: 11px; color: #6b7280;">(<?php echo esc_html( $pt->name ); ?>)</span>
+                                </label>
+                            </div>
+                            <?php
+                        }
+                        ?>
+                    </div>
                 </div>
                 
                 <div class="webclyde-box">
@@ -839,6 +297,14 @@ class WebClyde_Content_Vault_Admin {
                                value="<?php echo esc_attr($this->settings->get('check_interval', 2)); ?>" 
                                min="1" max="60" style="width: 100px;">
                         <p class="description"><?php esc_html_e('How often to check for pending archive status (1-60 minutes)', 'content-vault'); ?></p>
+                    </div>
+                    
+                    <div class="webclyde-form-row">
+                        <label for="cooldown_interval"><?php esc_html_e('Autosave/Publish Cooldown (minutes)', 'content-vault'); ?></label>
+                        <input type="number" id="cooldown_interval" name="cooldown_interval" 
+                               value="<?php echo esc_attr($this->settings->get('cooldown_interval', 5)); ?>" 
+                               min="0" max="1440" style="width: 100px;">
+                        <p class="description"><?php esc_html_e('Minimum wait time between automatic archives for the same post (0 to disable cooldown, manual archiving will always bypass this)', 'content-vault'); ?></p>
                     </div>
                     
                     <div class="webclyde-form-row">
@@ -868,6 +334,7 @@ class WebClyde_Content_Vault_Admin {
                             <option value="none" <?php selected($this->settings->get('broken_link_action', 'none'), 'none'); ?>><?php esc_html_e('Do Nothing (Default)', 'content-vault'); ?></option>
                             <option value="direct" <?php selected($this->settings->get('broken_link_action', 'none'), 'direct'); ?>><?php esc_html_e('Direct redirect to Wayback Machine', 'content-vault'); ?></option>
                             <option value="404_page" <?php selected($this->settings->get('broken_link_action', 'none'), '404_page'); ?>><?php esc_html_e('Show 404 page with Archive Link banner', 'content-vault'); ?></option>
+                            <option value="embed" <?php selected($this->settings->get('broken_link_action', 'none'), 'embed'); ?>><?php esc_html_e('Show Snapshot Embedded on our Website (Iframe)', 'content-vault'); ?></option>
                         </select>
                         <p class="description"><?php esc_html_e('If a user hits a 404 page, check the internet archive for a snapshot.', 'content-vault'); ?></p>
                     </div>
@@ -883,71 +350,65 @@ class WebClyde_Content_Vault_Admin {
     }
     
     public function render_logs_page() {
-        $this->render_logs_table('');
-    }
-    
-    public function render_post_logs_page() {
-        $this->render_logs_table('post');
-    }
-    
-    public function render_page_logs_page() {
-        $this->render_logs_table('page');
-    }
-    
-    private function render_logs_table($post_type = '') {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $page = isset($_GET['paged']) ? max(1, (int) sanitize_text_field(wp_unslash($_GET['paged']))) : 1;
         $per_page = 20;
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $post_type_filter = isset($_GET['post_type_filter']) ? sanitize_text_field(wp_unslash($_GET['post_type_filter'])) : '';
         
         $args = array(
             'page' => $page,
             'per_page' => $per_page,
             'status' => $status_filter,
-            'post_type' => $post_type
+            'post_type' => $post_type_filter
         );
         
         $logs = $this->logger->get_all($args);
         $total = $this->logger->get_total($args);
         $total_pages = ceil($total / $per_page);
-        $stats = $this->logger->get_stats($post_type);
         
-        $page_titles = array(
-            '' => __('All Logs', 'content-vault'),
-            'post' => __('Post Logs', 'content-vault'),
-            'page' => __('Page Logs', 'content-vault')
-        );
-        
-        $page_descriptions = array(
-            '' => __('View all archive logs for posts and pages', 'content-vault'),
-            'post' => __('View archive logs for posts only', 'content-vault'),
-            'page' => __('View archive logs for pages only', 'content-vault')
-        );
         ?>
         <div class="wrap webclyde-wrap">
             <div class="webclyde-header">
-                <h1><?php echo esc_html($page_titles[$post_type]); ?></h1>
-                <p><?php echo esc_html($page_descriptions[$post_type]); ?></p>
+                <h1><?php esc_html_e('All Archive Logs', 'content-vault'); ?></h1>
+                <p><?php esc_html_e('View and manage all archive logs and snapshots for your website content.', 'content-vault'); ?></p>
             </div>
-            
             
             <div class="webclyde-box">
                 <h2><?php esc_html_e('Archive Logs', 'content-vault'); ?></h2>
                 
                 <div class="webclyde-filters">
-                    <form method="get" style="display: flex; gap: 15px; align-items: center;">
-                        <input type="hidden" name="page" value="<?php 
-                            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-                            echo isset( $_GET['page'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) : ''; 
-                        ?>">
+                    <form method="get" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                        <input type="hidden" name="page" value="content-vault-logs">
                         
+                        <!-- Status Filter -->
                         <select name="status" onchange="this.form.submit()">
                             <option value=""><?php esc_html_e('All Statuses', 'content-vault'); ?></option>
                             <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php esc_html_e('Pending', 'content-vault'); ?></option>
                             <option value="processing" <?php selected($status_filter, 'processing'); ?>><?php esc_html_e('Processing', 'content-vault'); ?></option>
                             <option value="success" <?php selected($status_filter, 'success'); ?>><?php esc_html_e('Success', 'content-vault'); ?></option>
+                            <option value="completed" <?php selected($status_filter, 'completed'); ?>><?php esc_html_e('Completed', 'content-vault'); ?></option>
                             <option value="error" <?php selected($status_filter, 'error'); ?>><?php esc_html_e('Error', 'content-vault'); ?></option>
+                        </select>
+                        
+                        <!-- Post Type Filter -->
+                        <select name="post_type_filter" onchange="this.form.submit()">
+                            <option value=""><?php esc_html_e('All Post Types', 'content-vault'); ?></option>
+                            <?php
+                            $registered_types = get_post_types( array( 'public' => true ), 'objects' );
+                            foreach ( $registered_types as $pt ) {
+                                if ( in_array( $pt->name, array( 'attachment', 'revision', 'nav_menu_item' ) ) ) {
+                                    continue;
+                                }
+                                ?>
+                                <option value="<?php echo esc_attr($pt->name); ?>" <?php selected($post_type_filter, $pt->name); ?>>
+                                    <?php echo esc_html($pt->label); ?>
+                                </option>
+                                <?php
+                            }
+                            ?>
                         </select>
                     </form>
                     
@@ -1021,6 +482,7 @@ class WebClyde_Content_Vault_Admin {
                                             'pending' => '⏳',
                                             'processing' => '🔄',
                                             'success' => '✓',
+                                            'completed' => '✓',
                                             'error' => '✗'
                                         );
                                         echo esc_html($status_icons[$log->status] ?? '•');
@@ -1054,7 +516,6 @@ class WebClyde_Content_Vault_Admin {
                                 <td>
                                     <strong><?php echo esc_html($log->attempts); ?></strong>
                                     <div class="webclyde-time">
-                                    
                                         <?php 
                                         /* translators: %d is the maximum number of attempts allowed. */
                                         printf( esc_html__('of %d max', 'content-vault'),
@@ -1118,11 +579,10 @@ class WebClyde_Content_Vault_Admin {
                             
                             <div>
                                 <?php
-                                // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-                                $current_page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
                                 $base_url = add_query_arg(array(
-                                    'page' => $current_page,
-                                    'status' => $status_filter
+                                    'page' => 'content-vault-logs',
+                                    'status' => $status_filter,
+                                    'post_type_filter' => $post_type_filter
                                 ), admin_url('admin.php'));
                                 
                                 if ($page > 1): ?>
@@ -1159,15 +619,19 @@ class WebClyde_Content_Vault_Admin {
         $post_data = isset($_POST['data']) ? wp_unslash($_POST['data']) : '';
         parse_str($post_data, $data);
         
-        $fields = array('access_key', 'secret_key', 'enable_posts', 'enable_pages', 'check_interval', 'max_attempts', 'check_link_health', 'broken_link_action');
+        $fields = array('access_key', 'secret_key', 'check_interval', 'max_attempts', 'check_link_health', 'broken_link_action', 'cooldown_interval');
         
         foreach ($fields as $field) {
             $value = isset($data[$field]) ? $data[$field] : '';
-            if (in_array($field, array('enable_posts', 'enable_pages', 'check_link_health'))) {
+            if (in_array($field, array('check_link_health'))) {
                 $value = isset($data[$field]) ? 1 : 0;
             }
             $this->settings->set($field, $this->settings->sanitize($field, $value));
         }
+        
+        // Save multi-select post types list
+        $enabled_post_types = isset($data['enabled_post_types']) ? $data['enabled_post_types'] : array();
+        $this->settings->set('enabled_post_types', $this->settings->sanitize('enabled_post_types', $enabled_post_types));
         
         wp_send_json_success();
     }
@@ -1274,6 +738,271 @@ class WebClyde_Content_Vault_Admin {
         $this->logger->delete_bulk($ids);
         
         wp_send_json_success();
+    }
+    
+    public function ajax_archive_now() {
+        check_ajax_referer('webclyde_content_vault_nonce', 'nonce');
+        
+        if (!current_user_can('edit_posts')) {
+            wp_send_json_error(__('Permission denied', 'content-vault'));
+        }
+        
+        $post_id = isset($_POST['post_id']) ? (int) $_POST['post_id'] : 0;
+        
+        if (!$post_id) {
+            wp_send_json_error(__('Invalid Post ID', 'content-vault'));
+        }
+        
+        $url       = get_permalink( $post_id );
+        $post_type = get_post_type( $post_id );
+        
+        // Call API and completely bypass any automatic edit/publish cooldown!
+        $result = $this->api->submit_url( $url );
+        
+        if ( ! empty( $result['success'] ) ) {
+
+            $log_id = $this->logger->create( array(
+                'post_id'   => $post_id,
+                'post_type' => $post_type,
+                'url'       => $url,
+                'job_id'    => $result['job_id'],
+                'status'    => 'pending',
+            ) );
+
+            update_post_meta( $post_id, '_webclyde_last_archived', time() );
+
+            $this->scheduler->schedule_status_check( $result['job_id'] );
+            
+            wp_send_json_success(array(
+                'message' => __('Job created successfully!', 'content-vault'),
+                'job_id' => $result['job_id'],
+                'log_id' => $log_id
+            ));
+
+        } else {
+            // Log the error
+            $this->logger->create( array(
+                'post_id'       => $post_id,
+                'post_type'     => $post_type,
+                'url'           => $url,
+                'status'        => 'error',
+                'error_message' => $result['error'] ?? 'Unknown error',
+            ) );
+            
+            wp_send_json_error($result['error'] ?? 'Unknown error');
+        }
+    }
+    
+    public function add_archive_metabox() {
+        $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
+        if ( ! is_array( $enabled_types ) ) {
+            $enabled_types = array();
+        }
+        
+        foreach ($enabled_types as $post_type) {
+            add_meta_box(
+                'webclyde_content_vault_metabox',
+                __('Content Vault', 'content-vault'),
+                array($this, 'render_archive_metabox'),
+                $post_type,
+                'side',
+                'high'
+            );
+        }
+    }
+    
+    public function render_archive_metabox($post) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
+        
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $log = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$table_name} WHERE post_id = %d ORDER BY created_at DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $post->ID
+        ));
+        
+        ?>
+        <div class="webclyde-metabox">
+            <?php if (!$log): ?>
+                <p><?php esc_html_e('This post has not been archived yet.', 'content-vault'); ?></p>
+                <div style="margin-top:15px;">
+                    <button type="button" id="webclyde-archive-now-btn" class="button button-primary button-large" style="width:100%; display:flex; justify-content:center; align-items:center; gap:5px;" data-post-id="<?php echo esc_attr($post->ID); ?>">
+                        <span class="dashicons dashicons-backup" style="margin-top:3px;"></span>
+                        <?php esc_html_e('Archive Now', 'content-vault'); ?>
+                    </button>
+                </div>
+            <?php else: 
+                $status_colors = array(
+                    'pending' => '#d97706',
+                    'processing' => '#2563eb',
+                    'completed' => '#10b981',
+                    'success' => '#10b981',
+                    'error' => '#ef4444'
+                );
+                $color = $status_colors[$log->status] ?? '#6b7280';
+                $status_label = ucfirst($log->status);
+                if ($log->status === 'completed' || $log->status === 'success') {
+                    $status_label = __('Archived Successfully', 'content-vault');
+                }
+            ?>
+                <table class="form-table" style="margin:0; width:100%;">
+                    <tbody>
+                        <tr>
+                            <td style="padding:5px 0; font-weight:600; width:90px;"><?php esc_html_e('Status:', 'content-vault'); ?></td>
+                            <td style="padding:5px 0;">
+                                <span class="webclyde-status <?php echo esc_attr($log->status); ?>" style="display:inline-block; padding:3px 8px; border-radius:4px; background:<?php echo esc_attr($color); ?>22; color:<?php echo esc_attr($color); ?>; font-weight:bold; font-size:12px;">
+                                    <?php echo esc_html($status_label); ?>
+                                </span>
+                            </td>
+                        </tr>
+                        <?php if ($log->snapshot_url): ?>
+                            <tr>
+                                <td style="padding:5px 0; font-weight:600;"><?php esc_html_e('Snapshot:', 'content-vault'); ?></td>
+                                <td style="padding:5px 0;">
+                                    <a href="<?php echo esc_url($log->snapshot_url); ?>" target="_blank" style="text-decoration:none; color:#10b981; font-weight:500;">
+                                        📸 <?php esc_html_e('View Snapshot', 'content-vault'); ?>
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($log->last_checked): ?>
+                            <tr>
+                                <td style="padding:5px 0; font-weight:600;"><?php esc_html_e('Last Check:', 'content-vault'); ?></td>
+                                <td style="padding:5px 0; font-size:12px; color:#666;">
+                                    <?php echo esc_html(human_time_diff(strtotime($log->last_checked), current_time('timestamp'))); ?> ago
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                        <?php if ($log->error_message): ?>
+                            <tr>
+                                <td style="padding:5px 0; font-weight:600; color:#ef4444;"><?php esc_html_e('Error:', 'content-vault'); ?></td>
+                                <td style="padding:5px 0; font-size:12px; color:#ef4444; line-height:1.4;">
+                                    <?php echo esc_html($log->error_message); ?>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+                <div style="margin-top:15px; border-top:1px solid #eee; padding-top:15px;">
+                    <button type="button" id="webclyde-archive-now-btn" class="button button-secondary" style="width:100%; display:flex; justify-content:center; align-items:center; gap:5px;" data-post-id="<?php echo esc_attr($post->ID); ?>">
+                        <span class="dashicons dashicons-backup" style="margin-top:3px;"></span>
+                        <?php esc_html_e('Archive Again', 'content-vault'); ?>
+                    </button>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+    
+    public function add_custom_columns($columns) {
+        $columns['content_vault'] = __('Content Vault', 'content-vault');
+        return $columns;
+    }
+    
+    public function render_custom_columns($column, $post_id) {
+        if ($column !== 'content_vault') {
+            return;
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
+        
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $log = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$table_name} WHERE post_id = %d ORDER BY created_at DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $post_id
+        ));
+        
+        if (!$log) {
+            echo '<span style="color:#9ca3af;">—</span>';
+            echo '<br><a href="#" class="webclyde-archive-now-inline" data-post-id="' . esc_attr($post_id) . '" style="font-size:11px; text-decoration:none;">' . esc_html__('Archive Now', 'content-vault') . '</a>';
+            return;
+        }
+        
+        $status_colors = array(
+            'pending' => '#d97706',
+            'processing' => '#2563eb',
+            'completed' => '#10b981',
+            'success' => '#10b981',
+            'error' => '#ef4444'
+        );
+        
+        $color = $status_colors[$log->status] ?? '#6b7280';
+        $status_label = ucfirst($log->status);
+        if ($log->status === 'completed' || $log->status === 'success') {
+            $status_label = __('Archived', 'content-vault');
+        }
+        
+        echo '<div style="display:flex; align-items:center; gap:5px; font-weight:600; color:' . esc_attr($color) . ';">';
+        echo '<span style="width:8px; height:8px; border-radius:50%; background-color:' . esc_attr($color) . '; display:inline-block;"></span>';
+        echo esc_html($status_label);
+        echo '</div>';
+        
+        if ($log->snapshot_url) {
+            echo '<a href="' . esc_url($log->snapshot_url) . '" target="_blank" style="font-size:11px; text-decoration:none; color:#10b981; display:block; margin-top:3px;">' . esc_html__('View Snapshot 📸', 'content-vault') . '</a>';
+        }
+        
+        echo '<a href="#" class="webclyde-archive-now-inline" data-post-id="' . esc_attr($post_id) . '" style="font-size:11px; text-decoration:none; display:block; margin-top:3px; color:#667eea;">' . esc_html__('Archive Again', 'content-vault') . '</a>';
+    }
+    
+    public function add_bulk_archive_action($bulk_actions) {
+        $bulk_actions['webclyde_bulk_archive'] = __('Archive to Content Vault', 'content-vault');
+        return $bulk_actions;
+    }
+    
+    public function handle_bulk_archive_action($redirect_to, $action, $post_ids) {
+        if ($action !== 'webclyde_bulk_archive') {
+            return $redirect_to;
+        }
+        
+        $archived_count = 0;
+        
+        foreach ($post_ids as $post_id) {
+            $url       = get_permalink($post_id);
+            $post_type = get_post_type($post_id);
+            
+            $result = $this->api->submit_url($url);
+            
+            if (!empty($result['success'])) {
+                $this->logger->create(array(
+                    'post_id'   => $post_id,
+                    'post_type' => $post_type,
+                    'url'       => $url,
+                    'job_id'    => $result['job_id'],
+                    'status'    => 'pending',
+                ));
+                
+                update_post_meta($post_id, '_webclyde_last_archived', time());
+                $this->scheduler->schedule_status_check($result['job_id']);
+                $archived_count++;
+            } else {
+                $this->logger->create(array(
+                    'post_id'       => $post_id,
+                    'post_type'     => $post_type,
+                    'url'           => $url,
+                    'status'        => 'error',
+                    'error_message' => $result['error'] ?? 'Unknown error',
+                ));
+            }
+        }
+        
+        $redirect_to = add_query_arg('webclyde_bulk_archived', $archived_count, $redirect_to);
+        return $redirect_to;
+    }
+    
+    public function show_bulk_archive_admin_notice() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if (empty($_GET['webclyde_bulk_archived'])) {
+            return;
+        }
+        
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $count = (int) $_GET['webclyde_bulk_archived'];
+        
+        /* translators: %d is the number of posts successfully sent to the archive queue */
+        $message = sprintf(_n('%d post successfully added to archive queue.', '%d posts successfully added to archive queue.', $count, 'content-vault'), $count);
+        
+        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message) . '</p></div>';
     }
 }
 ?>

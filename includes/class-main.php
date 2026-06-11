@@ -106,12 +106,12 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             $defaults = array(
                 'access_key'         => '',
                 'secret_key'         => '',
-                'enable_posts'       => 1,
-                'enable_pages'       => 1,
                 'check_interval'     => 2,
                 'max_attempts'       => 15,
                 'check_link_health'  => 1,
                 'broken_link_action' => 'none',
+                'cooldown_interval'  => 5,
+                'enabled_post_types' => array( 'post', 'page' ),
             );
 
             foreach ( $defaults as $key => $value ) {
@@ -207,12 +207,12 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 $this->api
             );
 
-            if ( (int) $this->settings->get( 'enable_posts' ) === 1 ) {
-                add_action( 'publish_post', array( $this, 'handle_publish' ), 10, 2 );
-            }
-
-            if ( (int) $this->settings->get( 'enable_pages' ) === 1 ) {
-                add_action( 'publish_page', array( $this, 'handle_publish' ), 10, 2 );
+            // Dynamically register publisher hook on each chosen post type
+            $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
+            if ( is_array( $enabled_types ) ) {
+                foreach ( $enabled_types as $post_type ) {
+                    add_action( 'publish_' . $post_type, array( $this, 'handle_publish' ), 10, 2 );
+                }
             }
         }
 
@@ -227,8 +227,10 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             }
 
             $last_archived = get_post_meta( $post_id, '_webclyde_last_archived', true );
+            $cooldown_minutes = (int) $this->settings->get( 'cooldown_interval', 5 );
+            $cooldown_seconds = $cooldown_minutes * 60;
 
-            if ( $last_archived && ( time() - (int) $last_archived ) < 300 ) {
+            if ( $cooldown_seconds > 0 && $last_archived && ( time() - (int) $last_archived ) < $cooldown_seconds ) {
                 return;
             }
 

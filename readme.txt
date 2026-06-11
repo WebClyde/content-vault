@@ -4,7 +4,7 @@ Contributors: webclyde, nurulanam, zakir021063008
 Tags: content archive, content protection, content history, broken link protection, content monitoring
 Donate link: https://webclyde.com/donate
 Requires at least: 5.0
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.0
 Stable tag: 1.0.1
 License: GPL-2.0-or-later
@@ -41,23 +41,23 @@ Content Vault is perfect for bloggers, publishers, digital agencies, content cre
 
 == Features: ==
 
+- **Direct "Archive Now" Button**
+ Easily trigger immediate archiving directly from the Post and Page editor screen without leaving your editor.
+
+- **Post List Table Columns**
+ View the archive status and latest snapshot of every post at a glance from your standard Posts/Pages screens, and trigger archives with inline buttons.
+
+- **Bulk Archiving Support**
+ Select multiple posts or pages and archive them simultaneously in a single click using the native WordPress bulk actions menu.
+
+- **Custom Cooldown Settings**
+ Easily control or disable the edit/publish archive cooldown. Manual archives will always bypass the cooldown to give you full control.
+
+- **Embedded Iframe 404 Handler**
+ If a page goes missing (404), display the archived snapshot embedded natively on your website with a clean top branding bar, or choose a direct redirect.
+
 - **Automatic Content Archiving**
  Automatically archives posts and pages whenever they are published or updated.
-
-- **Content History Timeline**
- View a timeline of archive records for each page to see how your content evolved.
-
-- **Timestamped Archive Records**
- Each archive includes a verified date and time stamp.
-
-- **Broken Link Monitoring**
- Detect external links that stop working and help users access archived versions.
-
-- **Archive Status Tracking**
- Monitor whether archive requests are successful, pending, or failed.
-
-- **Simple Dashboard**
- A clean dashboard to monitor archives, failures, and link checks.
 
 
 == Installation ==
