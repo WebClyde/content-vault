@@ -26,8 +26,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				'link_health'      => 'unknown',
 				'link_health_code' => null,
 				'last_checked'     => null,
-				'created_at'       => current_time( 'mysql' ),
-				'updated_at'       => current_time( 'mysql' ),
+				'created_at'       => current_time( 'Y-m-d H:i:s' ),
+				'updated_at'       => current_time( 'Y-m-d H:i:s' ),
 			);
 			$data   = wp_parse_args( $data, $defaults );
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
@@ -37,7 +37,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 		public function update( $id, $data ) {
 			global $wpdb;
-			$data['updated_at'] = current_time( 'mysql' );
+			$data['updated_at'] = current_time( 'Y-m-d H:i:s' );
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->update(
 				$this->table_name,
@@ -74,12 +74,13 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			global $wpdb;
 
 			$defaults = array(
-				'status'    => '',
-				'post_type' => '',
-				'per_page'  => 20,
-				'page'      => 1,
-				'orderby'   => 'created_at',
-				'order'     => 'DESC',
+				'status'      => '',
+				'post_type'   => '',
+				'link_health' => '',
+				'per_page'    => 20,
+				'page'        => 1,
+				'orderby'     => 'created_at',
+				'order'       => 'DESC',
 			);
 			$args = wp_parse_args( $args, $defaults );
 
@@ -103,6 +104,11 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				$values[] = $args['post_type'];
 			}
 
+			if ( ! empty( $args['link_health'] ) ) {
+				$where[]  = 'link_health = %s';
+				$values[] = $args['link_health'];
+			}
+
 			$where_clause = implode( ' AND ', $where );
 
 			$orderby = sanitize_sql_orderby( $args['orderby'] . ' ' . $args['order'] );
@@ -113,17 +119,13 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			$offset   = (int) ( ( $args['page'] - 1 ) * $args['per_page'] );
 			$per_page = (int) $args['per_page'];
 
-			// Filter out empty values to prevent UnfinishedPrepare warning when $values contains empty strings.
-			$values = array_filter( $values );
-
 			$table = esc_sql( $this->table_name );
 
-			// Append integer parameters for LIMIT and OFFSET
-			$values[] = $per_page;
-			$values[] = $offset;
+			// Build values array: first the WHERE clause values, then LIMIT and OFFSET
+			$query_values = array_merge( $values, array( $per_page, $offset ) );
 
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, PluginCheck.Security.DirectDB.UnescapedDBParameter
-			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d", $values ) );
+			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE {$where_clause} ORDER BY {$orderby} LIMIT %d OFFSET %d", $query_values ) );
 		}
 
 		public function get_total( $args = array() ) {
@@ -149,10 +151,12 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				$values[] = $args['post_type'];
 			}
 
-			$where_clause = implode( ' AND ', $where );
+			if ( ! empty( $args['link_health'] ) ) {
+				$where[]  = 'link_health = %s';
+				$values[] = $args['link_health'];
+			}
 
-			// Filter out empty values to prevent UnfinishedPrepare warning when $values contains empty strings.
-			$values = array_filter( $values );
+			$where_clause = implode( ' AND ', $where );
 
 			$table = esc_sql( $this->table_name );
 
@@ -203,21 +207,6 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 			$table = esc_sql( $this->table_name );
 
-			if ( ! empty( $post_type ) ) {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$status_sql = $wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					"SELECT status, COUNT(*) as count FROM {$table} WHERE post_type = %s GROUP BY status",
-					$post_type
-				);
-			} else {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$status_sql = "SELECT status, COUNT(*) as count FROM {$table} GROUP BY status";
-			}
-
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$results = $wpdb->get_results( $status_sql );
-
 			$stats = array(
 				'total'      => 0,
 				'pending'    => 0,
@@ -227,6 +216,24 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				'completed'  => 0,
 			);
 
+			// Get status counts
+			if ( ! empty( $post_type ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$results = $wpdb->get_results(
+					$wpdb->prepare(
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						"SELECT status, COUNT(*) as count FROM {$table} WHERE post_type = %s GROUP BY status",
+						$post_type
+					)
+				);
+			} else {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$results = $wpdb->get_results(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT status, COUNT(*) as count FROM {$table} GROUP BY status"
+				);
+			}
+
 			foreach ( $results as $row ) {
 				if ( isset( $stats[ $row->status ] ) ) {
 					$stats[ $row->status ] = (int) $row->count;
@@ -234,24 +241,27 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				}
 			}
 
-			if ( ! empty( $post_type ) ) {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$health_sql = $wpdb->prepare(
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					"SELECT link_health, COUNT(*) as count FROM {$table} WHERE post_type = %s GROUP BY link_health",
-					$post_type
-				);
-			} else {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$health_sql = "SELECT link_health, COUNT(*) as count FROM {$table} GROUP BY link_health";
-			}
-
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$health_results = $wpdb->get_results( $health_sql );
-
 			$stats['healthy']   = 0;
 			$stats['unhealthy'] = 0;
 			$stats['unknown']   = 0;
+
+			// Get link_health counts
+			if ( ! empty( $post_type ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$health_results = $wpdb->get_results(
+					$wpdb->prepare(
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						"SELECT link_health, COUNT(*) as count FROM {$table} WHERE post_type = %s GROUP BY link_health",
+						$post_type
+					)
+				);
+			} else {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$health_results = $wpdb->get_results(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT link_health, COUNT(*) as count FROM {$table} GROUP BY link_health"
+				);
+			}
 
 			foreach ( $health_results as $row ) {
 				if ( isset( $stats[ $row->link_health ] ) ) {
@@ -259,6 +269,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				}
 			}
 
+			// Get post type counts
 			if ( empty( $post_type ) ) {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$type_results = $wpdb->get_results(

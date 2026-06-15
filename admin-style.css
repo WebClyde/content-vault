@@ -34,6 +34,15 @@
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     border-left: 4px solid #667eea;
 }
+.webclyde-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+.webclyde-card-link:focus,
+.webclyde-card-link:hover {
+    outline: 0;
+}
 .webclyde-card.success { border-left-color: #10b981; }
 .webclyde-card.warning { border-left-color: #f59e0b; }
 .webclyde-card.error { border-left-color: #ef4444; }
@@ -269,11 +278,16 @@
     align-items: center;
 }
 .webclyde-filters select {
-    padding: 10px 15px;
+    padding: 8px 15px;
     border: 2px solid #e5e7eb;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     background: white;
+    line-height: 1.2;
+    height: auto;
+}
+.webclyde-filters select option {
+    line-height: 1.2;
 }
 .webclyde-notice {
     padding: 15px 20px;

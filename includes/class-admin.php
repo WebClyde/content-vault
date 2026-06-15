@@ -204,14 +204,20 @@ class WebClyde_Content_Vault_Admin {
             <div class="webclyde-box">
                 <h2><?php esc_html_e('Link Health Overview', 'content-vault'); ?></h2>
                 <div class="webclyde-cards" style="margin-bottom: 0;">
-                    <div class="webclyde-card success">
+                    <a href="<?php echo esc_url(add_query_arg(array(
+                        'page' => 'content-vault-logs',
+                        'link_health_filter' => 'healthy'
+                    ), admin_url('admin.php'))); ?>" class="webclyde-card webclyde-card-link success">
                         <h3><?php esc_html_e('Healthy Links', 'content-vault'); ?></h3>
                         <div class="number"><?php echo esc_html($stats['healthy']); ?></div>
-                    </div>
-                    <div class="webclyde-card">
+                    </a>
+                    <a href="<?php echo esc_url(add_query_arg(array(
+                        'page' => 'content-vault-logs',
+                        'link_health_filter' => 'unknown'
+                    ), admin_url('admin.php'))); ?>" class="webclyde-card webclyde-card-link">
                         <h3><?php esc_html_e('Unknown Status', 'content-vault'); ?></h3>
                         <div class="number"><?php echo esc_html($stats['unknown']); ?></div>
-                    </div>
+                    </a>
                 </div>
             </div>
         </div>
@@ -357,12 +363,15 @@ class WebClyde_Content_Vault_Admin {
         $status_filter = isset($_GET['status']) ? sanitize_text_field(wp_unslash($_GET['status'])) : '';
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $post_type_filter = isset($_GET['post_type_filter']) ? sanitize_text_field(wp_unslash($_GET['post_type_filter'])) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $link_health_filter = isset($_GET['link_health_filter']) ? sanitize_text_field(wp_unslash($_GET['link_health_filter'])) : '';
         
         $args = array(
             'page' => $page,
             'per_page' => $per_page,
             'status' => $status_filter,
-            'post_type' => $post_type_filter
+            'post_type' => $post_type_filter,
+            'link_health' => $link_health_filter
         );
         
         $logs = $this->logger->get_all($args);
@@ -409,6 +418,14 @@ class WebClyde_Content_Vault_Admin {
                                 <?php
                             }
                             ?>
+                        </select>
+                        
+                        <!-- Link Health Filter -->
+                        <select name="link_health_filter" onchange="this.form.submit()">
+                            <option value=""><?php esc_html_e('All Link Health', 'content-vault'); ?></option>
+                            <option value="healthy" <?php selected($link_health_filter, 'healthy'); ?>><?php esc_html_e('Healthy', 'content-vault'); ?></option>
+                            <option value="unhealthy" <?php selected($link_health_filter, 'unhealthy'); ?>><?php esc_html_e('Unhealthy', 'content-vault'); ?></option>
+                            <option value="unknown" <?php selected($link_health_filter, 'unknown'); ?>><?php esc_html_e('Unknown', 'content-vault'); ?></option>
                         </select>
                     </form>
                     
@@ -582,7 +599,8 @@ class WebClyde_Content_Vault_Admin {
                                 $base_url = add_query_arg(array(
                                     'page' => 'content-vault-logs',
                                     'status' => $status_filter,
-                                    'post_type_filter' => $post_type_filter
+                                    'post_type_filter' => $post_type_filter,
+                                    'link_health_filter' => $link_health_filter
                                 ), admin_url('admin.php'));
                                 
                                 if ($page > 1): ?>

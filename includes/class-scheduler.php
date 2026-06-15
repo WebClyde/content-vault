@@ -108,8 +108,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     $this->logger->update( $log->id, array(
                         'status'       => 'completed',
                         'snapshot_url' => $fallback_url,
-                        'last_checked' => current_time( 'mysql' ),
-                        'finished_at'  => current_time( 'mysql' ),
+                        'last_checked' => current_time( 'Y-m-d H:i:s' ),
+                        'finished_at'  => current_time( 'Y-m-d H:i:s' ),
                         'error_message'=> null,
                     ) );
                     return;
@@ -118,8 +118,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                 $this->logger->update( $log->id, array(
                     'status'        => 'error',
                     'error_message' => __( 'Max attempts reached', 'content-vault' ),
-                    'last_checked'  => current_time( 'mysql' ),
-                    'finished_at'   => current_time( 'mysql' ),
+                    'last_checked'  => current_time( 'Y-m-d H:i:s' ),
+                    'finished_at'   => current_time( 'Y-m-d H:i:s' ),
                 ) );
                 return;
             }
@@ -128,7 +128,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
 
             $update_data = array(
                 'attempts'     => $log->attempts + 1,
-                'last_checked' => current_time( 'mysql' ),
+                'last_checked' => current_time( 'Y-m-d H:i:s' ),
             );
 
             if ( $result['success'] ) {
@@ -142,7 +142,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                         $update_data['snapshot_url'] = $result['snapshot_url'];
                     }
 
-                    $update_data['finished_at'] = current_time( 'mysql' );
+                    $update_data['finished_at'] = current_time( 'Y-m-d H:i:s' );
                     $update_data['status']      = 'completed';
 
                     $this->logger->update( $log->id, $update_data );
@@ -165,7 +165,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     if ( $fallback_url ) {
                         $update_data['status']       = 'completed';
                         $update_data['snapshot_url'] = $fallback_url;
-                        $update_data['finished_at']   = current_time( 'mysql' );
+                        $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
                         $update_data['error_message'] = null;
 
                         $this->logger->update( $log->id, $update_data );
@@ -179,7 +179,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     $update_data['error_message'] = isset( $result['message'] )
                         ? $result['message']
                         : __( 'Archive failed', 'content-vault' );
-                    $update_data['finished_at'] = current_time( 'mysql' );
+                    $update_data['finished_at'] = current_time( 'Y-m-d H:i:s' );
                     $update_data['status']      = 'error';
                     $this->logger->update( $log->id, $update_data );
                     return;
@@ -194,7 +194,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                         if ( $fallback_url ) {
                             $update_data['status']       = 'completed';
                             $update_data['snapshot_url'] = $fallback_url;
-                            $update_data['finished_at']   = current_time( 'mysql' );
+                            $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
                             $update_data['error_message'] = null;
 
                             $this->logger->update( $log->id, $update_data );
@@ -218,7 +218,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             if ( $fallback_url ) {
                 $update_data['status']       = 'completed';
                 $update_data['snapshot_url'] = $fallback_url;
-                $update_data['finished_at']   = current_time( 'mysql' );
+                $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
                 $update_data['error_message'] = null;
 
                 $this->logger->update( $log->id, $update_data );
@@ -266,7 +266,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             $this->logger->update( $log->id, array(
                 'link_health'      => $result['healthy'] ? 'healthy' : 'unhealthy',
                 'link_health_code' => $result['code'],
-                'last_checked'     => current_time( 'mysql' ),
+                'last_checked'     => current_time( 'Y-m-d H:i:s' ),
             ) );
         }
 
