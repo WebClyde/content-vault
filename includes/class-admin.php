@@ -399,6 +399,7 @@ class WebClyde_Content_Vault_Admin {
                             <option value="processing" <?php selected($status_filter, 'processing'); ?>><?php esc_html_e('Processing', 'content-vault'); ?></option>
                             <option value="success" <?php selected($status_filter, 'success'); ?>><?php esc_html_e('Success', 'content-vault'); ?></option>
                             <option value="completed" <?php selected($status_filter, 'completed'); ?>><?php esc_html_e('Completed', 'content-vault'); ?></option>
+                            <option value="completed_fallback" <?php selected($status_filter, 'completed_fallback'); ?>><?php esc_html_e('Completed (Fallback)', 'content-vault'); ?></option>
                             <option value="error" <?php selected($status_filter, 'error'); ?>><?php esc_html_e('Error', 'content-vault'); ?></option>
                         </select>
                         
@@ -496,11 +497,12 @@ class WebClyde_Content_Vault_Admin {
                                     <span class="webclyde-status <?php echo esc_attr($log->status); ?>">
                                         <?php
                                         $status_icons = array(
-                                            'pending' => '⏳',
-                                            'processing' => '🔄',
-                                            'success' => '✓',
-                                            'completed' => '✓',
-                                            'error' => '✗'
+                                            'pending'            => '⏳',
+                                            'processing'         => '🔄',
+                                            'success'            => '✓',
+                                            'completed'          => '✓',
+                                            'completed_fallback' => '♻',
+                                            'error'              => '✗'
                                         );
                                         echo esc_html($status_icons[$log->status] ?? '•');
                                         echo ' ' . esc_html(ucfirst($log->status));
@@ -851,16 +853,19 @@ class WebClyde_Content_Vault_Admin {
                 </div>
             <?php else: 
                 $status_colors = array(
-                    'pending' => '#d97706',
-                    'processing' => '#2563eb',
-                    'completed' => '#10b981',
-                    'success' => '#10b981',
-                    'error' => '#ef4444'
+                    'pending'            => '#d97706',
+                    'processing'         => '#2563eb',
+                    'completed'          => '#10b981',
+                    'completed_fallback' => '#059669',
+                    'success'            => '#10b981',
+                    'error'              => '#ef4444'
                 );
                 $color = $status_colors[$log->status] ?? '#6b7280';
                 $status_label = ucfirst($log->status);
-                if ($log->status === 'completed' || $log->status === 'success') {
+                if ( $log->status === 'completed' || $log->status === 'success' ) {
                     $status_label = __('Archived Successfully', 'content-vault');
+                } elseif ( $log->status === 'completed_fallback' ) {
+                    $status_label = __('Archived (Fallback Snapshot)', 'content-vault');
                 }
             ?>
                 <table class="form-table" style="margin:0; width:100%;">
@@ -938,17 +943,20 @@ class WebClyde_Content_Vault_Admin {
         }
         
         $status_colors = array(
-            'pending' => '#d97706',
-            'processing' => '#2563eb',
-            'completed' => '#10b981',
-            'success' => '#10b981',
-            'error' => '#ef4444'
+            'pending'            => '#d97706',
+            'processing'         => '#2563eb',
+            'completed'          => '#10b981',
+            'completed_fallback' => '#059669',
+            'success'            => '#10b981',
+            'error'              => '#ef4444'
         );
         
         $color = $status_colors[$log->status] ?? '#6b7280';
         $status_label = ucfirst($log->status);
-        if ($log->status === 'completed' || $log->status === 'success') {
+        if ( $log->status === 'completed' || $log->status === 'success' ) {
             $status_label = __('Archived', 'content-vault');
+        } elseif ( $log->status === 'completed_fallback' ) {
+            $status_label = __('Archived (Fallback)', 'content-vault');
         }
         
         echo '<div style="display:flex; align-items:center; gap:5px; font-weight:600; color:' . esc_attr($color) . ';">';

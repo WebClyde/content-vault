@@ -208,12 +208,13 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			$table = esc_sql( $this->table_name );
 
 			$stats = array(
-				'total'      => 0,
-				'pending'    => 0,
-				'processing' => 0,
-				'success'    => 0,
-				'error'      => 0,
-				'completed'  => 0,
+				'total'              => 0,
+				'pending'            => 0,
+				'processing'         => 0,
+				'success'            => 0,
+				'error'              => 0,
+				'completed'          => 0,
+				'completed_fallback' => 0,
 			);
 
 			// Get status counts

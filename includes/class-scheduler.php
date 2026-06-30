@@ -85,7 +85,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             }
 
             // 🔴 TERMINAL STATE GUARD (must be first)
-            if ( in_array( $log->status, array( 'success', 'completed' ), true ) ) {
+            if ( in_array( $log->status, array( 'success', 'completed', 'completed_fallback' ), true ) ) {
                 return;
             }
 
@@ -106,7 +106,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                 $fallback_url = $this->api->get_archive_url( $log->url );
                 if ( $fallback_url ) {
                     $this->logger->update( $log->id, array(
-                        'status'       => 'completed',
+                        'status'       => 'completed_fallback',
                         'snapshot_url' => $fallback_url,
                         'last_checked' => current_time( 'Y-m-d H:i:s' ),
                         'finished_at'  => current_time( 'Y-m-d H:i:s' ),
@@ -163,7 +163,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     // FALLBACK: Query the Availability API. If a snapshot is found, save it and complete the job!
                     $fallback_url = $this->api->get_archive_url( $log->url );
                     if ( $fallback_url ) {
-                        $update_data['status']       = 'completed';
+                        $update_data['status']       = 'completed_fallback';
                         $update_data['snapshot_url'] = $fallback_url;
                         $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
                         $update_data['error_message'] = null;
@@ -192,7 +192,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     if ( $log->attempts >= 3 ) {
                         $fallback_url = $this->api->get_archive_url( $log->url );
                         if ( $fallback_url ) {
-                            $update_data['status']       = 'completed';
+                            $update_data['status']       = 'completed_fallback';
                             $update_data['snapshot_url'] = $fallback_url;
                             $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
                             $update_data['error_message'] = null;
@@ -216,7 +216,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             // Try Availability check as a fallback first before incrementing attempts with errors
             $fallback_url = $this->api->get_archive_url( $log->url );
             if ( $fallback_url ) {
-                $update_data['status']       = 'completed';
+                $update_data['status']       = 'completed_fallback';
                 $update_data['snapshot_url'] = $fallback_url;
                 $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
                 $update_data['error_message'] = null;
@@ -244,7 +244,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
 
                 if (
                     empty( $log->job_id ) ||
-                    in_array( $log->status, array( 'success', 'completed' ), true )
+                    in_array( $log->status, array( 'success', 'completed', 'completed_fallback' ), true )
                 ) {
                     continue;
                 }

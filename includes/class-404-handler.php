@@ -79,7 +79,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_404_Handler' ) ) {
             foreach ( $variants as $variant ) {
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
                 $snapshot_url = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT snapshot_url FROM {$table_name} WHERE url = %s AND status = 'completed' AND snapshot_url IS NOT NULL AND snapshot_url != '' ORDER BY created_at DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                    "SELECT snapshot_url FROM {$table_name} WHERE url = %s AND status IN ('completed','completed_fallback') AND snapshot_url IS NOT NULL AND snapshot_url != '' ORDER BY created_at DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                     $variant
                 ) );
 

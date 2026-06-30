@@ -207,13 +207,41 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 $this->api
             );
 
-            // Dynamically register publisher hook on each chosen post type
-            $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
-            if ( is_array( $enabled_types ) ) {
-                foreach ( $enabled_types as $post_type ) {
-                    add_action( 'publish_' . $post_type, array( $this, 'handle_publish' ), 10, 2 );
-                }
+            // Use save_post so both first-publish AND subsequent edits of already-published
+            // posts trigger archiving (publish_{post_type} only fires on the status transition,
+            // not on updates of posts that are already published).
+            add_action( 'save_post', array( $this, 'handle_save' ), 10, 3 );
+        }
+
+        /**
+         * Fired on save_post — gates to published posts of enabled types only.
+         * Skips autosaves, revisions, and posts not yet in publish status.
+         * Delegates to handle_publish() which owns the cooldown + logging logic.
+         *
+         * @param int     $post_id Post ID.
+         * @param WP_Post $post    Post object.
+         * @param bool    $update  Whether this is an update (true) or a new insert (false).
+         */
+        public function handle_save( $post_id, $post, $update ) {
+
+            if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+                return;
             }
+
+            if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
+                return;
+            }
+
+            if ( $post->post_status !== 'publish' ) {
+                return;
+            }
+
+            $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
+            if ( ! is_array( $enabled_types ) || ! in_array( $post->post_type, $enabled_types, true ) ) {
+                return;
+            }
+
+            $this->handle_publish( $post_id, $post );
         }
 
         public function handle_publish( $post_id, $post ) {
