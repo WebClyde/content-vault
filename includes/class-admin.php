@@ -4,6 +4,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+if ( ! class_exists( 'WebClyde_Content_Vault_Admin' ) ) {
+
 class WebClyde_Content_Vault_Admin {
     
     private $settings;
@@ -31,6 +33,7 @@ class WebClyde_Content_Vault_Admin {
         add_action('wp_ajax_webclyde_retry_archive', array($this, 'ajax_retry_archive'));
         add_action('wp_ajax_webclyde_delete_log', array($this, 'ajax_delete_log'));
         add_action('wp_ajax_webclyde_bulk_delete', array($this, 'ajax_bulk_delete'));
+        add_action('wp_ajax_webclyde_bulk_archive_all', array($this, 'ajax_bulk_archive_all'));
         
         // Post/Page Screen Integration & Archive Now Action
         add_action('add_meta_boxes', array($this, 'add_archive_metabox'));
@@ -124,17 +127,46 @@ class WebClyde_Content_Vault_Admin {
     
     public function render_dashboard_page() {
         $stats = $this->logger->get_stats();
-        $enabled_types = $this->settings->get('enabled_post_types', array('post', 'page'));
-        if (!is_array($enabled_types)) {
+        $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
+        if ( ! is_array( $enabled_types ) ) {
             $enabled_types = array();
         }
+
+        $total_archived = (int) $stats['completed'] + (int) $stats['completed_fallback'] + (int) $stats['success'];
+        $total_pending  = (int) $stats['pending'] + (int) $stats['processing'];
+        $total_failed   = (int) $stats['error'];
+        $success_rate   = $stats['total'] > 0
+            ? round( ( $total_archived / $stats['total'] ) * 100 )
+            : 0;
         ?>
         <div class="wrap webclyde-wrap">
             <div class="webclyde-header">
-                <h1><?php esc_html_e('Content Vault', 'content-vault'); ?></h1>
-                <p><?php esc_html_e('Archive your WordPress content to the Content Vault automatically', 'content-vault'); ?></p>
+                <h1><?php esc_html_e( 'Content Vault', 'content-vault' ); ?></h1>
+                <p><?php esc_html_e( 'Archive your WordPress content to the Content Vault automatically', 'content-vault' ); ?></p>
             </div>
-            
+
+            <div class="webclyde-box">
+                <h2><?php esc_html_e( 'Archive Overview', 'content-vault' ); ?></h2>
+                <div class="webclyde-cards">
+                    <a href="<?php echo esc_url( add_query_arg( array( 'page' => 'content-vault-logs', 'status' => 'completed' ), admin_url( 'admin.php' ) ) ); ?>" class="webclyde-card webclyde-card-link success">
+                        <h3><?php esc_html_e( 'Total Archived', 'content-vault' ); ?></h3>
+                        <div class="number"><?php echo esc_html( $total_archived ); ?></div>
+                    </a>
+                    <a href="<?php echo esc_url( add_query_arg( array( 'page' => 'content-vault-logs', 'status' => 'pending' ), admin_url( 'admin.php' ) ) ); ?>" class="webclyde-card webclyde-card-link">
+                        <h3><?php esc_html_e( 'Pending Queue', 'content-vault' ); ?></h3>
+                        <div class="number"><?php echo esc_html( $total_pending ); ?></div>
+                    </a>
+                    <a href="<?php echo esc_url( add_query_arg( array( 'page' => 'content-vault-logs', 'status' => 'error' ), admin_url( 'admin.php' ) ) ); ?>" class="webclyde-card webclyde-card-link <?php echo $total_failed > 0 ? 'error' : ''; ?>">
+                        <h3><?php esc_html_e( 'Failed', 'content-vault' ); ?></h3>
+                        <div class="number"><?php echo esc_html( $total_failed ); ?></div>
+                    </a>
+                    <div class="webclyde-card">
+                        <h3><?php esc_html_e( 'Success Rate', 'content-vault' ); ?></h3>
+                        <div class="number"><?php echo esc_html( $success_rate ); ?>%</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="webclyde-box">
                 <h2><?php esc_html_e('System Status', 'content-vault'); ?></h2>
                 <div class="webclyde-system-status">
@@ -201,6 +233,22 @@ class WebClyde_Content_Vault_Admin {
                 </div>
             </div>
             
+            <div class="webclyde-box">
+                <h2><?php esc_html_e( 'Bulk Archive', 'content-vault' ); ?></h2>
+                <p class="description" style="margin-bottom: 16px;">
+                    <?php esc_html_e( 'Queue all published posts and pages for archiving to the Wayback Machine. Jobs run in the background via Action Scheduler — publishing is never blocked.', 'content-vault' ); ?>
+                </p>
+                <?php if ( $this->scheduler->is_action_scheduler_available() ) : ?>
+                    <button type="button" id="webclyde-bulk-archive-all" class="webclyde-btn webclyde-btn-primary">
+                        <span class="dashicons dashicons-backup"></span>
+                        <?php esc_html_e( 'Archive All Published Content', 'content-vault' ); ?>
+                    </button>
+                    <p id="webclyde-bulk-archive-result" style="display:none; margin-top: 12px; font-weight: 600;"></p>
+                <?php else : ?>
+                    <p style="color: #ef4444;"><?php esc_html_e( 'Action Scheduler is required for bulk archiving. Please install the Action Scheduler plugin.', 'content-vault' ); ?></p>
+                <?php endif; ?>
+            </div>
+
             <div class="webclyde-box">
                 <h2><?php esc_html_e('Link Health Overview', 'content-vault'); ?></h2>
                 <div class="webclyde-cards" style="margin-bottom: 0;">
@@ -767,20 +815,24 @@ class WebClyde_Content_Vault_Admin {
             wp_send_json_error(__('Permission denied', 'content-vault'));
         }
         
-        $post_id = isset($_POST['post_id']) ? (int) $_POST['post_id'] : 0;
-        
-        if (!$post_id) {
-            wp_send_json_error(__('Invalid Post ID', 'content-vault'));
+        $post_id = isset( $_POST['post_id'] ) ? (int) sanitize_text_field( wp_unslash( $_POST['post_id'] ) ) : 0;
+
+        if ( ! $post_id ) {
+            wp_send_json_error( __( 'Invalid Post ID', 'content-vault' ) );
         }
-        
+
         $url       = get_permalink( $post_id );
         $post_type = get_post_type( $post_id );
-        
-        // Call API and completely bypass any automatic edit/publish cooldown!
+
+        // Bypass cooldown — user explicitly requested an archive.
         $result = $this->api->submit_url( $url );
-        
+
         if ( ! empty( $result['success'] ) ) {
 
+            // Always create a new pending row — no dedup shortcut.
+            // WM may return the same job_id (server-side dedup) or a fresh one.
+            // Either way, the scheduler resolves this row and closes out any sibling
+            // pending rows via resolve_pending_siblings().
             $log_id = $this->logger->create( array(
                 'post_id'   => $post_id,
                 'post_type' => $post_type,
@@ -790,29 +842,68 @@ class WebClyde_Content_Vault_Admin {
             ) );
 
             update_post_meta( $post_id, '_webclyde_last_archived', time() );
-
             $this->scheduler->schedule_status_check( $result['job_id'] );
-            
-            wp_send_json_success(array(
-                'message' => __('Job created successfully!', 'content-vault'),
-                'job_id' => $result['job_id'],
-                'log_id' => $log_id
-            ));
+
+            wp_send_json_success( array(
+                'message' => __( 'Archive job created! Status will update automatically.', 'content-vault' ),
+                'job_id'  => $result['job_id'],
+                'log_id'  => $log_id,
+            ) );
 
         } else {
-            // Log the error
             $this->logger->create( array(
                 'post_id'       => $post_id,
                 'post_type'     => $post_type,
                 'url'           => $url,
                 'status'        => 'error',
-                'error_message' => $result['error'] ?? 'Unknown error',
+                'error_message' => $result['error'] ?? __( 'Unknown error', 'content-vault' ),
             ) );
-            
-            wp_send_json_error($result['error'] ?? 'Unknown error');
+
+            wp_send_json_error( $result['error'] ?? __( 'Unknown error', 'content-vault' ) );
         }
     }
     
+    public function ajax_bulk_archive_all() {
+        check_ajax_referer( 'webclyde_content_vault_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( __( 'Permission denied', 'content-vault' ) );
+        }
+
+        if ( ! $this->scheduler->is_action_scheduler_available() ) {
+            wp_send_json_error( __( 'Action Scheduler is required for bulk archiving. Please install the Action Scheduler plugin.', 'content-vault' ) );
+        }
+
+        $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
+        if ( ! is_array( $enabled_types ) || empty( $enabled_types ) ) {
+            wp_send_json_error( __( 'No post types are enabled for archiving. Check your settings.', 'content-vault' ) );
+        }
+
+        $post_ids = get_posts( array(
+            'post_type'      => $enabled_types,
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+            'has_password'   => false,
+        ) );
+
+        $queued = 0;
+
+        foreach ( $post_ids as $post_id ) {
+            if ( apply_filters( 'webclyde_content_vault_skip_archive', false, $post_id, get_post( $post_id ) ) ) {
+                continue;
+            }
+            $this->scheduler->schedule_post_archive( (int) $post_id );
+            $queued++;
+        }
+
+        wp_send_json_success( array(
+            'count'   => $queued,
+            /* translators: %d is the number of posts queued for archiving */
+            'message' => sprintf( __( '%d posts queued for archiving. They will be processed in the background.', 'content-vault' ), $queued ),
+        ) );
+    }
+
     public function add_archive_metabox() {
         $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
         if ( ! is_array( $enabled_types ) ) {
@@ -831,15 +922,8 @@ class WebClyde_Content_Vault_Admin {
         }
     }
     
-    public function render_archive_metabox($post) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
-        
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $log = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$table_name} WHERE post_id = %d ORDER BY created_at DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $post->ID
-        ));
+    public function render_archive_metabox( $post ) {
+        $log = $this->logger->get_by_post_id( $post->ID );
         
         ?>
         <div class="webclyde-metabox">
@@ -927,16 +1011,9 @@ class WebClyde_Content_Vault_Admin {
             return;
         }
         
-        global $wpdb;
-        $table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
-        
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $log = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$table_name} WHERE post_id = %d ORDER BY created_at DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $post_id
-        ));
-        
-        if (!$log) {
+        $log = $this->logger->get_by_post_id( $post_id );
+
+        if ( ! $log ) {
             echo '<span style="color:#9ca3af;">—</span>';
             echo '<br><a href="#" class="webclyde-archive-now-inline" data-post-id="' . esc_attr($post_id) . '" style="font-size:11px; text-decoration:none;">' . esc_html__('Archive Now', 'content-vault') . '</a>';
             return;
@@ -983,32 +1060,30 @@ class WebClyde_Content_Vault_Admin {
         
         $archived_count = 0;
         
-        foreach ($post_ids as $post_id) {
-            $url       = get_permalink($post_id);
-            $post_type = get_post_type($post_id);
-            
-            $result = $this->api->submit_url($url);
-            
-            if (!empty($result['success'])) {
-                $this->logger->create(array(
+        foreach ( $post_ids as $post_id ) {
+            $url       = get_permalink( $post_id );
+            $post_type = get_post_type( $post_id );
+            $result    = $this->api->submit_url( $url );
+
+            if ( ! empty( $result['success'] ) ) {
+                $this->logger->create( array(
                     'post_id'   => $post_id,
                     'post_type' => $post_type,
                     'url'       => $url,
                     'job_id'    => $result['job_id'],
                     'status'    => 'pending',
-                ));
-                
-                update_post_meta($post_id, '_webclyde_last_archived', time());
-                $this->scheduler->schedule_status_check($result['job_id']);
+                ) );
+                update_post_meta( $post_id, '_webclyde_last_archived', time() );
+                $this->scheduler->schedule_status_check( $result['job_id'] );
                 $archived_count++;
             } else {
-                $this->logger->create(array(
+                $this->logger->create( array(
                     'post_id'       => $post_id,
                     'post_type'     => $post_type,
                     'url'           => $url,
                     'status'        => 'error',
-                    'error_message' => $result['error'] ?? 'Unknown error',
-                ));
+                    'error_message' => $result['error'] ?? __( 'Unknown error', 'content-vault' ),
+                ) );
             }
         }
         
@@ -1031,4 +1106,5 @@ class WebClyde_Content_Vault_Admin {
         echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message) . '</p></div>';
     }
 }
-?>
+
+} // end class_exists check

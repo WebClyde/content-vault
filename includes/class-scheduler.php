@@ -50,17 +50,45 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             return class_exists( 'ActionScheduler' ) && function_exists( 'as_schedule_single_action' );
         }
 
-        public function schedule_status_check( $job_id ) {
+        public function is_action_scheduler_available(): bool {
+            return $this->has_action_scheduler();
+        }
+
+        /**
+         * Queue a single post for background archiving via Action Scheduler.
+         * Used by bulk-archive: the AS action fires do_archive() on the main class.
+         */
+        public function schedule_post_archive( int $post_id ): void {
+            if ( ! $this->has_action_scheduler() ) {
+                return;
+            }
+            as_schedule_single_action(
+                time() + 5,
+                'webclyde_content_vault_archive_post',
+                array( 'post_id' => $post_id ),
+                'content-vault'
+            );
+        }
+
+        public function schedule_status_check( string $job_id, int $delay = 0 ): void {
             $interval = (int) $this->settings->get( 'check_interval', 10 ) * 60;
+            $delay    = $delay > 0 ? $delay : $interval;
 
             if ( $this->has_action_scheduler() ) {
                 as_schedule_single_action(
-                    time() + $interval,
+                    time() + $delay,
                     'webclyde_content_vault_check_pending',
                     array( 'job_id' => $job_id ),
                     'content-vault'
                 );
             }
+        }
+
+        private function is_rate_limit_error( string $message ): bool {
+            return stripos( $message, 'limit of active' ) !== false
+                || stripos( $message, 'rate-limit' ) !== false
+                || stripos( $message, 'rate_limit' ) !== false
+                || stripos( $message, 'too many' ) !== false;
         }
 
         public function schedule_health_check( $log_id ) {
@@ -112,6 +140,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                         'finished_at'  => current_time( 'Y-m-d H:i:s' ),
                         'error_message'=> null,
                     ) );
+                    $this->logger->resolve_pending_siblings( $job_id, $log->id, 'completed_fallback', $fallback_url );
                     return;
                 }
 
@@ -146,6 +175,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     $update_data['status']      = 'completed';
 
                     $this->logger->update( $log->id, $update_data );
+                    $this->logger->resolve_pending_siblings( $job_id, $log->id, 'completed', $update_data['snapshot_url'] ?? null );
 
                     if (
                         $this->settings->get( 'check_link_health' ) &&
@@ -159,7 +189,17 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
 
                 // ---------------- ERROR (E.g. already archived or duplicate submission block) ----------------
                 if ( $result['status'] === 'error' ) {
-                    
+
+                    // Transient rate-limit error: WM's queue is full. Don't mark as final error —
+                    // reschedule with a 30-minute backoff and leave status as pending.
+                    $error_msg = isset( $result['message'] ) ? $result['message'] : '';
+                    if ( $this->is_rate_limit_error( $error_msg ) ) {
+                        $update_data['error_message'] = $error_msg;
+                        $this->logger->update( $log->id, $update_data );
+                        $this->schedule_status_check( $job_id, 30 * MINUTE_IN_SECONDS );
+                        return;
+                    }
+
                     // FALLBACK: Query the Availability API. If a snapshot is found, save it and complete the job!
                     $fallback_url = $this->api->get_archive_url( $log->url );
                     if ( $fallback_url ) {
@@ -169,6 +209,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                         $update_data['error_message'] = null;
 
                         $this->logger->update( $log->id, $update_data );
+                        $this->logger->resolve_pending_siblings( $job_id, $log->id, 'completed_fallback', $fallback_url );
 
                         if ( $this->settings->get( 'check_link_health' ) ) {
                             $this->schedule_health_check( $log->id );
@@ -198,6 +239,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                             $update_data['error_message'] = null;
 
                             $this->logger->update( $log->id, $update_data );
+                            $this->logger->resolve_pending_siblings( $job_id, $log->id, 'completed_fallback', $fallback_url );
 
                             if ( $this->settings->get( 'check_link_health' ) ) {
                                 $this->schedule_health_check( $log->id );
@@ -222,6 +264,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                 $update_data['error_message'] = null;
 
                 $this->logger->update( $log->id, $update_data );
+                $this->logger->resolve_pending_siblings( $job_id, $log->id, 'completed_fallback', $fallback_url );
 
                 if ( $this->settings->get( 'check_link_health' ) ) {
                     $this->schedule_health_check( $log->id );

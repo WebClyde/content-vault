@@ -228,6 +228,37 @@ jQuery(document).ready(function($) {
         });
     });
 
+    // Bulk Archive All Published Content
+    $('#webclyde-bulk-archive-all').on('click', function() {
+        var btn = $(this);
+        var result = $('#webclyde-bulk-archive-result');
+        var originalHtml = btn.html();
+
+        if (!confirm('This will queue ALL published posts for archiving to the Wayback Machine. Continue?')) {
+            return;
+        }
+
+        btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin" style="margin-top:3px;"></span> Queuing...');
+        result.hide();
+
+        $.post(webclydeContentVault.ajaxurl, {
+            action: 'webclyde_bulk_archive_all',
+            nonce: webclydeContentVault.nonce
+        }, function(response) {
+            btn.prop('disabled', false).html(originalHtml);
+            if (response.success) {
+                result.text(response.data.message).css('color', '#10b981').show();
+                showToast(response.data.message, 'success');
+            } else {
+                result.text(response.data || 'Error queuing archives.').css('color', '#ef4444').show();
+                showToast(response.data || 'Error queuing archives.', 'error');
+            }
+        }).fail(function() {
+            btn.prop('disabled', false).html(originalHtml);
+            showToast('Request failed. Please try again.', 'error');
+        });
+    });
+
     // Gutenberg Editor Header Button Injection
     function injectGutenbergHeaderButton() {
         var editorEl = $('#editor');

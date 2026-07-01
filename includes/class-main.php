@@ -211,6 +211,9 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             // posts trigger archiving (publish_{post_type} only fires on the status transition,
             // not on updates of posts that are already published).
             add_action( 'save_post', array( $this, 'handle_save' ), 10, 3 );
+
+            // Action Scheduler hook: fired per-post during bulk archiving.
+            add_action( 'webclyde_content_vault_archive_post', array( $this, 'do_archive' ) );
         }
 
         /**
@@ -236,8 +239,24 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 return;
             }
 
+            // Never archive password-protected content.
+            if ( ! empty( $post->post_password ) ) {
+                return;
+            }
+
             $enabled_types = $this->settings->get( 'enabled_post_types', array( 'post', 'page' ) );
             if ( ! is_array( $enabled_types ) || ! in_array( $post->post_type, $enabled_types, true ) ) {
+                return;
+            }
+
+            /**
+             * Allow third-party plugins (e.g. Yoast SEO, RankMath) to prevent archiving.
+             *
+             * @param bool    $skip    Whether to skip archiving this post.
+             * @param int     $post_id Post ID.
+             * @param WP_Post $post    Post object.
+             */
+            if ( apply_filters( 'webclyde_content_vault_skip_archive', false, $post_id, $post ) ) {
                 return;
             }
 
@@ -254,7 +273,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 return;
             }
 
-            $last_archived = get_post_meta( $post_id, '_webclyde_last_archived', true );
+            $last_archived    = get_post_meta( $post_id, '_webclyde_last_archived', true );
             $cooldown_minutes = (int) $this->settings->get( 'cooldown_interval', 5 );
             $cooldown_seconds = $cooldown_minutes * 60;
 
@@ -262,56 +281,48 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 return;
             }
 
-            $url       = get_permalink( $post_id );
-            $post_type = get_post_type( $post_id );
+            $this->do_archive( $post_id );
+        }
 
-            $result = $this->api->submit_url( $url );
+        /**
+         * Submit a post to Wayback Machine and create a log entry.
+         * No cooldown — callers gate if needed. Always requests a fresh WM capture
+         * so each publish/update gets its own snapshot attempt and log row.
+         * Also fired via the `webclyde_content_vault_archive_post` AS action (bulk queue).
+         *
+         * @param int $post_id Post ID.
+         */
+        public function do_archive( int $post_id ): void {
+
+            $post = get_post( $post_id );
+
+            if ( ! $post || $post->post_status !== 'publish' || ! empty( $post->post_password ) ) {
+                return;
+            }
+
+            if ( apply_filters( 'webclyde_content_vault_skip_archive', false, $post_id, $post ) ) {
+                return;
+            }
+
+            $url       = get_permalink( $post_id );
+            $post_type = $post->post_type;
+            $result    = $this->api->submit_url( $url );
 
             if ( ! empty( $result['success'] ) ) {
 
-                $job_id   = $result['job_id'];
-                $existing = $this->logger->get_by_job_id( $job_id );
+                // Always create a fresh pending row — no duplicate-detection shortcut.
+                // The scheduler resolves this row via check_status(); resolve_pending_siblings()
+                // closes out any older pending rows that share the same WM job_id.
+                $this->logger->create( array(
+                    'post_id'   => $post_id,
+                    'post_type' => $post_type,
+                    'url'       => $url,
+                    'job_id'    => $result['job_id'],
+                    'status'    => 'pending',
+                ) );
 
-                // WM returned a duplicate job_id (their server-side deduplication).
-                // Resolve the new entry immediately via the Availability API instead of
-                // queuing a status-check that would hit the old completed row's terminal guard.
-                if ( $existing && in_array( $existing->status, array( 'success', 'completed', 'completed_fallback' ), true ) ) {
-
-                    $snapshot_url = $this->api->get_archive_url( $url );
-
-                    $this->logger->create( array(
-                        'post_id'       => $post_id,
-                        'post_type'     => $post_type,
-                        'url'           => $url,
-                        'job_id'        => $job_id,
-                        'status'        => $snapshot_url ? 'completed_fallback' : 'pending',
-                        'snapshot_url'  => $snapshot_url ?: null,
-                        'error_message' => $snapshot_url ? null : null,
-                    ) );
-
-                    update_post_meta( $post_id, '_webclyde_last_archived', time() );
-
-                    // If availability API gave us nothing, still schedule a status check so the
-                    // entry is not stuck — the ORDER BY id DESC fix in get_by_job_id ensures the
-                    // scheduler picks up this new row rather than the old completed one.
-                    if ( ! $snapshot_url ) {
-                        $this->scheduler->schedule_status_check( $job_id );
-                    }
-
-                } else {
-
-                    $this->logger->create( array(
-                        'post_id'   => $post_id,
-                        'post_type' => $post_type,
-                        'url'       => $url,
-                        'job_id'    => $job_id,
-                        'status'    => 'pending',
-                    ) );
-
-                    update_post_meta( $post_id, '_webclyde_last_archived', time() );
-
-                    $this->scheduler->schedule_status_check( $job_id );
-                }
+                update_post_meta( $post_id, '_webclyde_last_archived', time() );
+                $this->scheduler->schedule_status_check( $result['job_id'] );
 
             } else {
 

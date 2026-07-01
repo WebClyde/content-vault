@@ -58,7 +58,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			);
 		}
 
-		public function get_by_job_id( $job_id ) {
+		public function get_by_job_id( string $job_id ): ?object {
 			global $wpdb;
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return $wpdb->get_row(
@@ -66,6 +66,18 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					"SELECT * FROM {$this->table_name} WHERE job_id = %s ORDER BY id DESC LIMIT 1",
 					$job_id
+				)
+			);
+		}
+
+		public function get_by_post_id( int $post_id ): ?object {
+			global $wpdb;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return $wpdb->get_row(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT * FROM {$this->table_name} WHERE post_id = %d ORDER BY id DESC LIMIT 1",
+					$post_id
 				)
 			);
 		}
@@ -162,6 +174,34 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter
 			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$where_clause}", $values ) );
+		}
+
+		/**
+		 * Bulk-resolves all other pending/processing rows that share $job_id.
+		 * Called after the primary row is updated to a terminal state so sibling
+		 * rows from earlier submissions don't stay stuck as pending forever.
+		 *
+		 * @param string      $job_id     Wayback Machine job ID.
+		 * @param int         $primary_id ID of the row already updated (excluded from this query).
+		 * @param string      $status     Terminal status to apply ('completed' or 'completed_fallback').
+		 * @param string|null $snapshot_url Snapshot URL to save on siblings.
+		 */
+		public function resolve_pending_siblings( string $job_id, int $primary_id, string $status, ?string $snapshot_url ): void {
+			global $wpdb;
+			$now = current_time( 'Y-m-d H:i:s' );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"UPDATE {$this->table_name} SET status = %s, snapshot_url = %s, last_checked = %s, updated_at = %s WHERE job_id = %s AND id != %d AND status IN ('pending', 'processing')",
+					$status,
+					$snapshot_url,
+					$now,
+					$now,
+					$job_id,
+					$primary_id
+				)
+			);
 		}
 
 		public function get_pending() {

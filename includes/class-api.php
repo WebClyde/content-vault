@@ -56,6 +56,15 @@ if ( ! class_exists( 'WebClyde_Content_Vault_API' ) ) {
             }
 
             if ( isset( $body['job_id'] ) ) {
+                // WM sometimes returns a job_id alongside status=error (e.g. rate limit exceeded).
+                // Treat these as failures — accepting them would create phantom pending rows
+                // that can never complete because WM already rejected the capture.
+                if ( isset( $body['status'] ) && 'error' === $body['status'] ) {
+                    return array(
+                        'success' => false,
+                        'error'   => isset( $body['message'] ) ? $body['message'] : __( 'Wayback Machine rejected the archive request', 'content-vault' ),
+                    );
+                }
                 return array(
                     'success' => true,
                     'job_id'  => $body['job_id'],
