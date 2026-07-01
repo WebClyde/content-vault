@@ -269,17 +269,49 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
 
             if ( ! empty( $result['success'] ) ) {
 
-                $this->logger->create( array(
-                    'post_id'   => $post_id,
-                    'post_type' => $post_type,
-                    'url'       => $url,
-                    'job_id'    => $result['job_id'],
-                    'status'    => 'pending',
-                ) );
+                $job_id   = $result['job_id'];
+                $existing = $this->logger->get_by_job_id( $job_id );
 
-                update_post_meta( $post_id, '_webclyde_last_archived', time() );
+                // WM returned a duplicate job_id (their server-side deduplication).
+                // Resolve the new entry immediately via the Availability API instead of
+                // queuing a status-check that would hit the old completed row's terminal guard.
+                if ( $existing && in_array( $existing->status, array( 'success', 'completed', 'completed_fallback' ), true ) ) {
 
-                $this->scheduler->schedule_status_check( $result['job_id'] );
+                    $snapshot_url = $this->api->get_archive_url( $url );
+
+                    $this->logger->create( array(
+                        'post_id'       => $post_id,
+                        'post_type'     => $post_type,
+                        'url'           => $url,
+                        'job_id'        => $job_id,
+                        'status'        => $snapshot_url ? 'completed_fallback' : 'pending',
+                        'snapshot_url'  => $snapshot_url ?: null,
+                        'error_message' => $snapshot_url ? null : null,
+                    ) );
+
+                    update_post_meta( $post_id, '_webclyde_last_archived', time() );
+
+                    // If availability API gave us nothing, still schedule a status check so the
+                    // entry is not stuck — the ORDER BY id DESC fix in get_by_job_id ensures the
+                    // scheduler picks up this new row rather than the old completed one.
+                    if ( ! $snapshot_url ) {
+                        $this->scheduler->schedule_status_check( $job_id );
+                    }
+
+                } else {
+
+                    $this->logger->create( array(
+                        'post_id'   => $post_id,
+                        'post_type' => $post_type,
+                        'url'       => $url,
+                        'job_id'    => $job_id,
+                        'status'    => 'pending',
+                    ) );
+
+                    update_post_meta( $post_id, '_webclyde_last_archived', time() );
+
+                    $this->scheduler->schedule_status_check( $job_id );
+                }
 
             } else {
 

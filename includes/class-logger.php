@@ -64,7 +64,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			return $wpdb->get_row(
 				$wpdb->prepare(
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					"SELECT * FROM {$this->table_name} WHERE job_id = %s",
+					"SELECT * FROM {$this->table_name} WHERE job_id = %s ORDER BY id DESC LIMIT 1",
 					$job_id
 				)
 			);

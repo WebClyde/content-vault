@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 
 // constants
 if (!defined('WEBCLYDE_CONTENT_VAULT_VERSION')) {
-    define('WEBCLYDE_CONTENT_VAULT_VERSION', '2.0.0');
+    define('WEBCLYDE_CONTENT_VAULT_VERSION', '1.0.1');
 }
 if (!defined('WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR')) {
     define('WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR', plugin_dir_path(__FILE__));
