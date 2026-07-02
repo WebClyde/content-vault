@@ -10,20 +10,23 @@ class WebClyde_Content_Vault_Admin {
     
     private $settings;
     private $logger;
+    private $versioner;
     private $api;
     private $scheduler;
-    
+
     public function __construct(
         WebClyde_Content_Vault_Settings $settings,
         WebClyde_Content_Vault_Logger $logger,
+        WebClyde_Content_Vault_Versioner $versioner,
         WebClyde_Content_Vault_API $api,
         WebClyde_Content_Vault_Scheduler $scheduler
     ) {
-        $this->settings = $settings;
-        $this->logger = $logger;
-        $this->api = $api;
+        $this->settings  = $settings;
+        $this->logger    = $logger;
+        $this->versioner = $versioner;
+        $this->api       = $api;
         $this->scheduler = $scheduler;
-        
+
         add_action('admin_menu', array($this, 'add_menu_pages'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_assets'));
         add_action('wp_ajax_webclyde_save_settings', array($this, 'ajax_save_settings'));
@@ -34,6 +37,8 @@ class WebClyde_Content_Vault_Admin {
         add_action('wp_ajax_webclyde_delete_log', array($this, 'ajax_delete_log'));
         add_action('wp_ajax_webclyde_bulk_delete', array($this, 'ajax_bulk_delete'));
         add_action('wp_ajax_webclyde_bulk_archive_all', array($this, 'ajax_bulk_archive_all'));
+        add_action('wp_ajax_webclyde_delete_version', array($this, 'ajax_delete_version'));
+        add_action('wp_ajax_webclyde_bulk_delete_versions', array($this, 'ajax_bulk_delete_versions'));
         
         // Post/Page Screen Integration & Archive Now Action
         add_action('add_meta_boxes', array($this, 'add_archive_metabox'));
@@ -75,13 +80,13 @@ class WebClyde_Content_Vault_Admin {
         
         add_submenu_page(
             'content-vault',
-            __('Settings', 'content-vault'),
-            __('Settings', 'content-vault'),
+            __('Version History', 'content-vault'),
+            __('Versions', 'content-vault'),
             'manage_options',
-            'content-vault-settings',
-            array($this, 'render_settings_page')
+            'content-vault-versions',
+            array($this, 'render_versions_page')
         );
-        
+
         add_submenu_page(
             'content-vault',
             __('Logs', 'content-vault'),
@@ -89,6 +94,15 @@ class WebClyde_Content_Vault_Admin {
             'manage_options',
             'content-vault-logs',
             array($this, 'render_logs_page')
+        );
+
+        add_submenu_page(
+            'content-vault',
+            __('Settings', 'content-vault'),
+            __('Settings', 'content-vault'),
+            'manage_options',
+            'content-vault-settings',
+            array($this, 'render_settings_page')
         );
     }
     
@@ -272,6 +286,161 @@ class WebClyde_Content_Vault_Admin {
         <?php
     }
     
+    public function render_versions_page() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $page = isset( $_GET['paged'] ) ? max( 1, (int) sanitize_text_field( wp_unslash( $_GET['paged'] ) ) ) : 1;
+        $per_page = 20;
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $post_type_filter = isset( $_GET['post_type_filter'] ) ? sanitize_text_field( wp_unslash( $_GET['post_type_filter'] ) ) : '';
+
+        $args     = array( 'page' => $page, 'per_page' => $per_page, 'post_type' => $post_type_filter );
+        $versions = $this->versioner->get_all( $args );
+        $total    = $this->versioner->get_total( $args );
+        $total_pages = (int) ceil( $total / $per_page );
+        ?>
+        <div class="wrap webclyde-wrap">
+            <div class="webclyde-header">
+                <h1><?php esc_html_e( 'Version History', 'content-vault' ); ?></h1>
+                <p><?php esc_html_e( 'Local content snapshots saved on every qualifying publish or update. Used to detect meaningful changes before submitting to Wayback Machine.', 'content-vault' ); ?></p>
+            </div>
+
+            <div class="webclyde-box">
+                <h2><?php esc_html_e( 'Local Snapshots', 'content-vault' ); ?></h2>
+
+                <div class="webclyde-filters">
+                    <form method="get" style="display:flex; gap:15px; align-items:center; flex-wrap:wrap;">
+                        <input type="hidden" name="page" value="content-vault-versions">
+                        <select name="post_type_filter" onchange="this.form.submit()">
+                            <option value=""><?php esc_html_e( 'All Post Types', 'content-vault' ); ?></option>
+                            <?php
+                            foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $pt ) {
+                                if ( in_array( $pt->name, array( 'attachment', 'revision', 'nav_menu_item' ), true ) ) {
+                                    continue;
+                                }
+                                ?>
+                                <option value="<?php echo esc_attr( $pt->name ); ?>" <?php selected( $post_type_filter, $pt->name ); ?>>
+                                    <?php echo esc_html( $pt->label ); ?>
+                                </option>
+                                <?php
+                            }
+                            ?>
+                        </select>
+                    </form>
+                    <button type="button" id="webclyde-bulk-delete-versions" class="webclyde-btn webclyde-btn-danger webclyde-btn-small">
+                        <span class="dashicons dashicons-trash"></span>
+                        <?php esc_html_e( 'Delete Selected', 'content-vault' ); ?>
+                    </button>
+                </div>
+
+                <?php if ( empty( $versions ) ) : ?>
+                    <p><?php esc_html_e( 'No versions found. Local snapshots are saved automatically when published posts are updated.', 'content-vault' ); ?></p>
+                <?php else : ?>
+                <table class="webclyde-table">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;"><input type="checkbox" id="webclyde-versions-select-all"></th>
+                            <th><?php esc_html_e( 'Post', 'content-vault' ); ?></th>
+                            <th><?php esc_html_e( 'Words', 'content-vault' ); ?></th>
+                            <th><?php esc_html_e( 'Hash', 'content-vault' ); ?></th>
+                            <th><?php esc_html_e( 'Saved', 'content-vault' ); ?></th>
+                            <th><?php esc_html_e( 'Actions', 'content-vault' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $versions as $version ) :
+                            $title = get_the_title( $version->post_id );
+                            if ( empty( $title ) ) {
+                                $title = __( '(No title)', 'content-vault' );
+                            }
+                        ?>
+                        <tr>
+                            <td><input type="checkbox" class="webclyde-version-checkbox" value="<?php echo esc_attr( $version->id ); ?>"></td>
+                            <td>
+                                <strong>
+                                    <a href="<?php echo esc_url( get_edit_post_link( $version->post_id ) ); ?>">
+                                        <?php echo esc_html( $title ); ?>
+                                    </a>
+                                </strong>
+                                <div style="margin-top:4px;">
+                                    <span class="webclyde-badge <?php echo esc_attr( $version->post_type ); ?>">
+                                        <?php echo esc_html( ucfirst( $version->post_type ) ); ?>
+                                    </span>
+                                    <span class="webclyde-time">ID: <?php echo esc_html( $version->post_id ); ?></span>
+                                </div>
+                            </td>
+                            <td><strong><?php echo esc_html( number_format( (int) $version->word_count ) ); ?></strong></td>
+                            <td>
+                                <code style="font-size:11px; background:#f3f4f6; padding:2px 6px; border-radius:4px;">
+                                    <?php echo esc_html( substr( $version->content_hash, 0, 12 ) ); ?>…
+                                </code>
+                            </td>
+                            <td>
+                                <strong><?php echo esc_html( human_time_diff( strtotime( $version->created_at ), current_time( 'timestamp' ) ) ); ?> ago</strong>
+                                <div class="webclyde-time">
+                                    <?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $version->created_at ) ) ); ?>
+                                </div>
+                            </td>
+                            <td>
+                                <button type="button" class="webclyde-btn webclyde-btn-danger webclyde-btn-small webclyde-delete-version"
+                                        data-version-id="<?php echo esc_attr( $version->id ); ?>">
+                                    <?php esc_html_e( 'Delete', 'content-vault' ); ?>
+                                </button>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+
+                <?php if ( $total_pages > 1 ) : ?>
+                    <div class="webclyde-pagination">
+                        <span><?php
+                        printf(
+                            /* translators: %1$d-%2$d is the range shown, %3$d is total */
+                            esc_html__( 'Showing %1$d-%2$d of %3$d versions', 'content-vault' ),
+                            (int) ( ( $page - 1 ) * $per_page ) + 1,
+                            (int) min( $page * $per_page, $total ),
+                            (int) $total
+                        ); ?></span>
+                        <div>
+                            <?php
+                            $base_url = add_query_arg( array( 'page' => 'content-vault-versions', 'post_type_filter' => $post_type_filter ), admin_url( 'admin.php' ) );
+                            if ( $page > 1 ) : ?>
+                                <a href="<?php echo esc_url( add_query_arg( 'paged', $page - 1, $base_url ) ); ?>" class="webclyde-btn webclyde-btn-secondary webclyde-btn-small">← <?php esc_html_e( 'Previous', 'content-vault' ); ?></a>
+                            <?php endif;
+                            if ( $page < $total_pages ) : ?>
+                                <a href="<?php echo esc_url( add_query_arg( 'paged', $page + 1, $base_url ) ); ?>" class="webclyde-btn webclyde-btn-secondary webclyde-btn-small"><?php esc_html_e( 'Next', 'content-vault' ); ?> →</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    public function ajax_delete_version() {
+        check_ajax_referer( 'webclyde_content_vault_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( __( 'Permission denied', 'content-vault' ) );
+        }
+        $version_id = isset( $_POST['version_id'] ) ? (int) sanitize_text_field( wp_unslash( $_POST['version_id'] ) ) : 0;
+        $this->versioner->delete( $version_id );
+        wp_send_json_success();
+    }
+
+    public function ajax_bulk_delete_versions() {
+        check_ajax_referer( 'webclyde_content_vault_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( __( 'Permission denied', 'content-vault' ) );
+        }
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $raw_ids = isset( $_POST['ids'] ) && is_array( $_POST['ids'] ) ? wp_unslash( $_POST['ids'] ) : array();
+        $ids     = array_map( 'intval', $raw_ids );
+        $this->versioner->delete_bulk( $ids );
+        wp_send_json_success();
+    }
+
     public function render_settings_page() {
         ?>
         <div class="wrap webclyde-wrap">
@@ -355,10 +524,10 @@ class WebClyde_Content_Vault_Admin {
                     
                     <div class="webclyde-form-row">
                         <label for="cooldown_interval"><?php esc_html_e('Autosave/Publish Cooldown (minutes)', 'content-vault'); ?></label>
-                        <input type="number" id="cooldown_interval" name="cooldown_interval" 
-                               value="<?php echo esc_attr($this->settings->get('cooldown_interval', 5)); ?>" 
-                               min="0" max="1440" style="width: 100px;">
-                        <p class="description"><?php esc_html_e('Minimum wait time between automatic archives for the same post (0 to disable cooldown, manual archiving will always bypass this)', 'content-vault'); ?></p>
+                        <input type="number" id="cooldown_interval" name="cooldown_interval"
+                               value="<?php echo esc_attr($this->settings->get('cooldown_interval', 1440)); ?>"
+                               min="0" max="10080" style="width: 100px;">
+                        <p class="description"><?php esc_html_e('Minimum minutes between automatic archives for the same post. 1440 = once per day (recommended). 0 = archive on every save. 10080 = once per week. Manual "Archive Now" always bypasses this limit.', 'content-vault'); ?></p>
                     </div>
                     
                     <div class="webclyde-form-row">
@@ -413,13 +582,16 @@ class WebClyde_Content_Vault_Admin {
         $post_type_filter = isset($_GET['post_type_filter']) ? sanitize_text_field(wp_unslash($_GET['post_type_filter'])) : '';
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $link_health_filter = isset($_GET['link_health_filter']) ? sanitize_text_field(wp_unslash($_GET['link_health_filter'])) : '';
-        
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $job_id_search = isset($_GET['job_id_search']) ? sanitize_text_field(wp_unslash($_GET['job_id_search'])) : '';
+
         $args = array(
-            'page' => $page,
-            'per_page' => $per_page,
-            'status' => $status_filter,
-            'post_type' => $post_type_filter,
-            'link_health' => $link_health_filter
+            'page'        => $page,
+            'per_page'    => $per_page,
+            'status'      => $status_filter,
+            'post_type'   => $post_type_filter,
+            'link_health' => $link_health_filter,
+            'job_id'      => $job_id_search,
         );
         
         $logs = $this->logger->get_all($args);
@@ -476,6 +648,27 @@ class WebClyde_Content_Vault_Admin {
                             <option value="unhealthy" <?php selected($link_health_filter, 'unhealthy'); ?>><?php esc_html_e('Unhealthy', 'content-vault'); ?></option>
                             <option value="unknown" <?php selected($link_health_filter, 'unknown'); ?>><?php esc_html_e('Unknown', 'content-vault'); ?></option>
                         </select>
+
+                        <!-- Job ID Search -->
+                        <input type="text"
+                               name="job_id_search"
+                               value="<?php echo esc_attr( $job_id_search ); ?>"
+                               placeholder="<?php esc_attr_e( 'Search Job ID…', 'content-vault' ); ?>"
+                               style="min-width:200px; padding:6px 10px; border:1px solid #ddd; border-radius:4px;">
+                        <button type="submit" class="webclyde-btn webclyde-btn-secondary webclyde-btn-small">
+                            <span class="dashicons dashicons-search" style="margin-top:2px;"></span>
+                            <?php esc_html_e( 'Search', 'content-vault' ); ?>
+                        </button>
+                        <?php if ( ! empty( $job_id_search ) ) : ?>
+                            <a href="<?php echo esc_url( add_query_arg( array(
+                                'page'               => 'content-vault-logs',
+                                'status'             => $status_filter,
+                                'post_type_filter'   => $post_type_filter,
+                                'link_health_filter' => $link_health_filter,
+                            ), admin_url( 'admin.php' ) ) ); ?>" class="webclyde-btn webclyde-btn-secondary webclyde-btn-small">
+                                ✕ <?php esc_html_e( 'Clear', 'content-vault' ); ?>
+                            </a>
+                        <?php endif; ?>
                     </form>
                     
                     <button type="button" id="webclyde-bulk-delete" class="webclyde-btn webclyde-btn-danger webclyde-btn-small">
@@ -647,10 +840,11 @@ class WebClyde_Content_Vault_Admin {
                             <div>
                                 <?php
                                 $base_url = add_query_arg(array(
-                                    'page' => 'content-vault-logs',
-                                    'status' => $status_filter,
-                                    'post_type_filter' => $post_type_filter,
-                                    'link_health_filter' => $link_health_filter
+                                    'page'               => 'content-vault-logs',
+                                    'status'             => $status_filter,
+                                    'post_type_filter'   => $post_type_filter,
+                                    'link_health_filter' => $link_health_filter,
+                                    'job_id_search'      => $job_id_search,
                                 ), admin_url('admin.php'));
                                 
                                 if ($page > 1): ?>

@@ -30,10 +30,14 @@ if (!defined('WEBCLYDE_CONTENT_VAULT_PLUGIN_URL')) {
 if (!defined('WEBCLYDE_CONTENT_VAULT_TABLE_NAME')) {
     define('WEBCLYDE_CONTENT_VAULT_TABLE_NAME', 'webclyde_content_vault_logs');
 }
+if (!defined('WEBCLYDE_CONTENT_VAULT_VERSIONS_TABLE')) {
+    define('WEBCLYDE_CONTENT_VAULT_VERSIONS_TABLE', 'webclyde_content_vault_versions');
+}
 
 // include core classes
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-settings.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-logger.php';
+require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-versioner.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-api.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-scheduler.php';
 require_once WEBCLYDE_CONTENT_VAULT_PLUGIN_DIR . 'includes/class-admin.php';

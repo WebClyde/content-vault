@@ -228,6 +228,59 @@ jQuery(document).ready(function($) {
         });
     });
 
+    // Delete a single local version snapshot
+    $(document).on('click', '.webclyde-delete-version', function() {
+        if (!confirm(webclydeContentVault.strings.confirm_delete)) return;
+
+        var btn = $(this);
+        var versionId = btn.data('version-id');
+
+        $.post(webclydeContentVault.ajaxurl, {
+            action: 'webclyde_delete_version',
+            nonce: webclydeContentVault.nonce,
+            version_id: versionId
+        }, function(response) {
+            if (response.success) {
+                btn.closest('tr').fadeOut(function() { $(this).remove(); });
+                showToast('Version deleted', 'success');
+            } else {
+                showToast(response.data || 'Error deleting version', 'error');
+            }
+        });
+    });
+
+    // Select all version checkboxes
+    $('#webclyde-versions-select-all').on('change', function() {
+        $('.webclyde-version-checkbox').prop('checked', $(this).is(':checked'));
+    });
+
+    // Bulk delete local version snapshots
+    $('#webclyde-bulk-delete-versions').on('click', function() {
+        var ids = [];
+        $('.webclyde-version-checkbox:checked').each(function() {
+            ids.push($(this).val());
+        });
+
+        if (ids.length === 0) {
+            showToast('Please select versions to delete', 'error');
+            return;
+        }
+
+        if (!confirm(webclydeContentVault.strings.confirm_bulk_delete)) return;
+
+        $.post(webclydeContentVault.ajaxurl, {
+            action: 'webclyde_bulk_delete_versions',
+            nonce: webclydeContentVault.nonce,
+            ids: ids
+        }, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                showToast(response.data || 'Error deleting versions', 'error');
+            }
+        });
+    });
+
     // Bulk Archive All Published Content
     $('#webclyde-bulk-archive-all').on('click', function() {
         var btn = $(this);

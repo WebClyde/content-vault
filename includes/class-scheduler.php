@@ -134,11 +134,10 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                 $fallback_url = $this->api->get_archive_url( $log->url );
                 if ( $fallback_url ) {
                     $this->logger->update( $log->id, array(
-                        'status'       => 'completed_fallback',
-                        'snapshot_url' => $fallback_url,
-                        'last_checked' => current_time( 'Y-m-d H:i:s' ),
-                        'finished_at'  => current_time( 'Y-m-d H:i:s' ),
-                        'error_message'=> null,
+                        'status'        => 'completed_fallback',
+                        'snapshot_url'  => $fallback_url,
+                        'last_checked'  => current_time( 'Y-m-d H:i:s' ),
+                        'error_message' => null,
                     ) );
                     $this->logger->resolve_pending_siblings( $job_id, $log->id, 'completed_fallback', $fallback_url );
                     return;
@@ -148,7 +147,6 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     'status'        => 'error',
                     'error_message' => __( 'Max attempts reached', 'content-vault' ),
                     'last_checked'  => current_time( 'Y-m-d H:i:s' ),
-                    'finished_at'   => current_time( 'Y-m-d H:i:s' ),
                 ) );
                 return;
             }
@@ -171,8 +169,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                         $update_data['snapshot_url'] = $result['snapshot_url'];
                     }
 
-                    $update_data['finished_at'] = current_time( 'Y-m-d H:i:s' );
-                    $update_data['status']      = 'completed';
+                    $update_data['status'] = 'completed';
 
                     $this->logger->update( $log->id, $update_data );
                     $this->logger->resolve_pending_siblings( $job_id, $log->id, 'completed', $update_data['snapshot_url'] ?? null );
@@ -205,7 +202,6 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     if ( $fallback_url ) {
                         $update_data['status']       = 'completed_fallback';
                         $update_data['snapshot_url'] = $fallback_url;
-                        $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
                         $update_data['error_message'] = null;
 
                         $this->logger->update( $log->id, $update_data );
@@ -220,8 +216,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     $update_data['error_message'] = isset( $result['message'] )
                         ? $result['message']
                         : __( 'Archive failed', 'content-vault' );
-                    $update_data['finished_at'] = current_time( 'Y-m-d H:i:s' );
-                    $update_data['status']      = 'error';
+                    $update_data['status'] = 'error';
                     $this->logger->update( $log->id, $update_data );
                     return;
                 }
@@ -233,9 +228,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
                     if ( $log->attempts >= 3 ) {
                         $fallback_url = $this->api->get_archive_url( $log->url );
                         if ( $fallback_url ) {
-                            $update_data['status']       = 'completed_fallback';
-                            $update_data['snapshot_url'] = $fallback_url;
-                            $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
+                            $update_data['status']        = 'completed_fallback';
+                            $update_data['snapshot_url']  = $fallback_url;
                             $update_data['error_message'] = null;
 
                             $this->logger->update( $log->id, $update_data );
@@ -258,9 +252,8 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Scheduler' ) ) {
             // Try Availability check as a fallback first before incrementing attempts with errors
             $fallback_url = $this->api->get_archive_url( $log->url );
             if ( $fallback_url ) {
-                $update_data['status']       = 'completed_fallback';
-                $update_data['snapshot_url'] = $fallback_url;
-                $update_data['finished_at']   = current_time( 'Y-m-d H:i:s' );
+                $update_data['status']        = 'completed_fallback';
+                $update_data['snapshot_url']  = $fallback_url;
                 $update_data['error_message'] = null;
 
                 $this->logger->update( $log->id, $update_data );

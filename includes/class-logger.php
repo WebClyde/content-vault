@@ -21,6 +21,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				'job_id'           => null,
 				'status'           => 'pending',
 				'snapshot_url'     => null,
+				'content_hash'     => null,
 				'error_message'    => null,
 				'attempts'         => 0,
 				'link_health'      => 'unknown',
@@ -82,6 +83,25 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			);
 		}
 
+		/**
+		 * Get the content hash stored on the most recent successfully completed
+		 * WM archive for a given post. Used to skip re-archiving identical content.
+		 */
+		public function get_last_archived_hash( int $post_id ): ?string {
+			global $wpdb;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			return $wpdb->get_var(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT content_hash FROM {$this->table_name}
+					 WHERE post_id = %d AND status IN ('completed','completed_fallback')
+					 AND content_hash IS NOT NULL
+					 ORDER BY id DESC LIMIT 1",
+					$post_id
+				)
+			);
+		}
+
 		public function get_all( $args = array() ) {
 			global $wpdb;
 
@@ -89,6 +109,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 				'status'      => '',
 				'post_type'   => '',
 				'link_health' => '',
+				'job_id'      => '',
 				'per_page'    => 20,
 				'page'        => 1,
 				'orderby'     => 'created_at',
@@ -119,6 +140,11 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			if ( ! empty( $args['link_health'] ) ) {
 				$where[]  = 'link_health = %s';
 				$values[] = $args['link_health'];
+			}
+
+			if ( ! empty( $args['job_id'] ) ) {
+				$where[]  = 'job_id LIKE %s';
+				$values[] = '%' . $wpdb->esc_like( $args['job_id'] ) . '%';
 			}
 
 			$where_clause = implode( ' AND ', $where );
@@ -166,6 +192,11 @@ if ( ! class_exists( 'WebClyde_Content_Vault_Logger' ) ) {
 			if ( ! empty( $args['link_health'] ) ) {
 				$where[]  = 'link_health = %s';
 				$values[] = $args['link_health'];
+			}
+
+			if ( ! empty( $args['job_id'] ) ) {
+				$where[]  = 'job_id LIKE %s';
+				$values[] = '%' . $wpdb->esc_like( $args['job_id'] ) . '%';
 			}
 
 			$where_clause = implode( ' AND ', $where );

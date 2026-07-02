@@ -12,6 +12,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
 
         public $settings;
         public $logger;
+        public $versioner;
         public $api;
         public $scheduler;
         public $admin;
@@ -78,6 +79,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 job_id varchar(255) DEFAULT NULL,
                 status varchar(50) NOT NULL DEFAULT 'pending',
                 snapshot_url text DEFAULT NULL,
+                content_hash varchar(64) DEFAULT NULL,
                 error_message text DEFAULT NULL,
                 attempts int(11) NOT NULL DEFAULT 0,
                 link_health varchar(20) DEFAULT 'unknown',
@@ -95,10 +97,35 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             require_once ABSPATH . 'wp-admin/includes/upgrade.php';
             dbDelta( $sql );
 
+            $this->create_versions_table( $charset_collate );
+
             update_option(
                 'webclyde_content_vault_db_version',
                 WEBCLYDE_CONTENT_VAULT_VERSION
             );
+        }
+
+        private function create_versions_table( string $charset_collate ): void {
+            global $wpdb;
+
+            $table_name = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_VERSIONS_TABLE;
+
+            $sql = "CREATE TABLE $table_name (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                post_id bigint(20) NOT NULL,
+                post_type varchar(50) NOT NULL DEFAULT 'post',
+                title text NOT NULL,
+                content longtext NOT NULL,
+                excerpt text DEFAULT NULL,
+                word_count int(11) NOT NULL DEFAULT 0,
+                content_hash varchar(64) NOT NULL,
+                created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY post_id (post_id),
+                KEY post_id_hash (post_id, content_hash)
+            ) $charset_collate;";
+
+            dbDelta( $sql );
         }
 
         private function set_default_options() {
@@ -110,7 +137,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 'max_attempts'       => 15,
                 'check_link_health'  => 1,
                 'broken_link_action' => 'none',
-                'cooldown_interval'  => 5,
+                'cooldown_interval'  => 1440,
                 'enabled_post_types' => array( 'post', 'page' ),
             );
 
@@ -184,10 +211,60 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             return true;
         }
 
+        private function maybe_migrate_settings(): void {
+            if ( false !== get_option( 'webclyde_content_vault_cooldown_migrated_v2' ) ) {
+                return;
+            }
+
+            // Migrate old 5-minute default cooldown to once-per-day.
+            $current = (int) get_option( 'webclyde_content_vault_cooldown_interval', -1 );
+            if ( 5 === $current ) {
+                update_option( 'webclyde_content_vault_cooldown_interval', 1440 );
+            }
+
+            // Ensure both DB tables exist for sites upgrading from older versions.
+            global $wpdb;
+            require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+            $charset_collate = $wpdb->get_charset_collate();
+
+            // Add content_hash column to logs table if absent (dbDelta is safe to re-run).
+            $logs_table = $wpdb->prefix . WEBCLYDE_CONTENT_VAULT_TABLE_NAME;
+            $logs_sql   = "CREATE TABLE $logs_table (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                post_id bigint(20) NOT NULL,
+                post_type varchar(50) NOT NULL DEFAULT 'post',
+                url text NOT NULL,
+                job_id varchar(255) DEFAULT NULL,
+                status varchar(50) NOT NULL DEFAULT 'pending',
+                snapshot_url text DEFAULT NULL,
+                content_hash varchar(64) DEFAULT NULL,
+                error_message text DEFAULT NULL,
+                attempts int(11) NOT NULL DEFAULT 0,
+                link_health varchar(20) DEFAULT 'unknown',
+                link_health_code int(11) DEFAULT NULL,
+                last_checked datetime DEFAULT NULL,
+                created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY post_id (post_id),
+                KEY status (status),
+                KEY job_id (job_id),
+                KEY post_type (post_type)
+            ) $charset_collate;";
+            dbDelta( $logs_sql );
+
+            $this->create_versions_table( $charset_collate );
+
+            update_option( 'webclyde_content_vault_cooldown_migrated_v2', true );
+        }
+
         public function init_plugin() {
+
+            $this->maybe_migrate_settings();
 
             $this->settings  = new WebClyde_Content_Vault_Settings();
             $this->logger    = new WebClyde_Content_Vault_Logger();
+            $this->versioner = new WebClyde_Content_Vault_Versioner();
             $this->api       = new WebClyde_Content_Vault_API( $this->settings );
             $this->scheduler = new WebClyde_Content_Vault_Scheduler(
                 $this->api,
@@ -198,6 +275,7 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
             $this->admin = new WebClyde_Content_Vault_Admin(
                 $this->settings,
                 $this->logger,
+                $this->versioner,
                 $this->api,
                 $this->scheduler
             );
@@ -226,6 +304,16 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
          * @param bool    $update  Whether this is an update (true) or a new insert (false).
          */
         public function handle_save( $post_id, $post, $update ) {
+
+            // WordPress can fire save_post more than once per request — e.g. Gutenberg
+            // issues a REST save while a third-party plugin's save_post hook calls
+            // wp_update_post() internally. Both calls read the same "old" hash before
+            // either has written the new version row, producing duplicate version entries.
+            // Track processed IDs for the lifetime of this request to prevent that.
+            static $processed = array();
+            if ( isset( $processed[ $post_id ] ) ) {
+                return;
+            }
 
             if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
                 return;
@@ -258,6 +346,31 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
              */
             if ( apply_filters( 'webclyde_content_vault_skip_archive', false, $post_id, $post ) ) {
                 return;
+            }
+
+            // All gates passed — mark this post_id as processed for this request.
+            $processed[ $post_id ] = true;
+
+            // ── Layer 1: Local version history ─────────────────────────────────
+            // Compute a content hash and save a local snapshot on every qualifying
+            // save. If the content is identical to the last saved version, nothing
+            // has changed — skip both local snapshot and WM submission.
+            $current_hash = $this->versioner->compute_hash( $post );
+            $last_version_hash = $this->versioner->get_latest_hash( $post_id );
+
+            if ( $last_version_hash === $current_hash ) {
+                return; // Content unchanged — no local version, no WM archive.
+            }
+
+            $this->versioner->save( $post_id, $post, $current_hash );
+
+            // ── Layer 2: Wayback Machine ────────────────────────────────────────
+            // Only submit to WM if content differs from the last successfully
+            // archived version. Prevents re-archiving the same content twice.
+            $last_archived_hash = $this->logger->get_last_archived_hash( $post_id );
+
+            if ( $last_archived_hash === $current_hash ) {
+                return; // WM already has this exact content.
             }
 
             $this->handle_publish( $post_id, $post );
@@ -304,21 +417,25 @@ if ( ! class_exists( 'WebClyde_Content_Vault' ) ) {
                 return;
             }
 
-            $url       = get_permalink( $post_id );
-            $post_type = $post->post_type;
-            $result    = $this->api->submit_url( $url );
+            $url          = get_permalink( $post_id );
+            $post_type    = $post->post_type;
+            $content_hash = $this->versioner->compute_hash( $post );
+            $result       = $this->api->submit_url( $url );
 
             if ( ! empty( $result['success'] ) ) {
 
                 // Always create a fresh pending row — no duplicate-detection shortcut.
                 // The scheduler resolves this row via check_status(); resolve_pending_siblings()
                 // closes out any older pending rows that share the same WM job_id.
+                // content_hash is stored so get_last_archived_hash() can detect unchanged
+                // content on future saves and skip redundant WM submissions.
                 $this->logger->create( array(
-                    'post_id'   => $post_id,
-                    'post_type' => $post_type,
-                    'url'       => $url,
-                    'job_id'    => $result['job_id'],
-                    'status'    => 'pending',
+                    'post_id'      => $post_id,
+                    'post_type'    => $post_type,
+                    'url'          => $url,
+                    'job_id'       => $result['job_id'],
+                    'status'       => 'pending',
+                    'content_hash' => $content_hash,
                 ) );
 
                 update_post_meta( $post_id, '_webclyde_last_archived', time() );
